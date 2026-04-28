@@ -6,7 +6,6 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { meetingParticipants } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
 
 interface Props{
     params: Promise<{meetingId: string}>;
