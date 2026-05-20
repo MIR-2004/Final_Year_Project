@@ -4,9 +4,9 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { polarClient } from '@/lib/polar';
 import { db } from '@/db';
-import { agents, meetings } from '@/db/schema';
+import { meetings } from '@/db/schema';
 import { count, eq } from 'drizzle-orm';
-import { MAX_FREE_AGENTS, MAX_FREE_MEETINGS } from '@/modules/premium/constants';
+import { MAX_FREE_MEETINGS } from '@/modules/premium/constants';
 export const createTRPCContext = cache(async () => {
   /**
    * @see: https://trpc.io/docs/server/context
@@ -27,7 +27,6 @@ const t = initTRPC.create({
 export const createTRPCRouter = t.router;
 export const createCallerFactory = t.createCallerFactory;
 export const baseProcedure = t.procedure;
-// export const publicProcedure = baseProcedure;
 
 export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
   const session = await auth.api.getSession({
@@ -44,7 +43,7 @@ export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
   });
 });
 
-export const premiumProcedure = (entity: "meetings" | "agents") =>
+export const premiumProcedure = (entity: "meetings") =>
   protectedProcedure.use(async ({ ctx, next }) => {
     const customer = await polarClient.customers.getStateExternal({
       externalId: ctx.auth.user.id,
@@ -57,28 +56,14 @@ export const premiumProcedure = (entity: "meetings" | "agents") =>
       .from(meetings)
       .where(eq(meetings.userId, ctx.auth.user.id));
 
-    const [userAgents] = await db
-      .select({
-        count: count(agents.id),
-      })
-      .from(agents)
-      .where(eq(agents.userId, ctx.auth.user.id));
-
     const isPremium = customer.activeSubscriptions.length > 0;
-    const isFreeAgentLimitReached = userAgents.count >= MAX_FREE_AGENTS;
     const isFreeMeetingLimitReached = userMeetings.count >= MAX_FREE_MEETINGS;
 
     const shouldThrowMeetingError =
       entity === "meetings" && isFreeMeetingLimitReached && !isPremium;
-    const shouldThrowAgentError =
-      entity === "agents" && isFreeAgentLimitReached && !isPremium;
 
     if (shouldThrowMeetingError) {
       throw new TRPCError({ code: "FORBIDDEN", message: "You have reached your free meetings limit" });
-    }
-
-    if (shouldThrowAgentError) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "You have reached your free agents limit" });
     }
 
     return next({ ctx: { ...ctx, customer } });

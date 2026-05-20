@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { BotIcon, StarIcon, VideoIcon, UsersIcon } from "lucide-react";
+import { StarIcon, VideoIcon, UsersIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -31,11 +31,6 @@ const firstSection = [
     label: "Other Meetings",
     href: "/meetings?type=others-meetings",
   },
-  {
-    icon: BotIcon,
-    label: "Agents",
-    href: "/agents",
-  },
 ];
 
 const secondSection = [
@@ -43,18 +38,18 @@ const secondSection = [
     icon: StarIcon,
     label: "Upgrade",
     href: "/upgrade",
-  }, 
+  },
 ];
 
 const DashboardSideber = () => {
   const pathname = usePathname();
   // Ensure the type param is read when we are on /meetings
   const isMeetingLink = (href: string) => {
-      // client-side window approach since useSearchParams from next/navigation might require a suspense boundary
-      if (typeof window !== "undefined") {
-          return pathname === "/meetings" && window.location.search.includes(href.split("?")[1]);
-      }
-      return false;
+    // client-side window approach since useSearchParams from next/navigation might require a suspense boundary
+    if (typeof window !== "undefined") {
+      return pathname === "/meetings" && window.location.search.includes(href.split("?")[1]);
+    }
+    return false;
   };
 
   return (
@@ -96,8 +91,8 @@ const DashboardSideber = () => {
           </SidebarGroupContent>
         </SidebarGroup>
         <div className="px-4 py-2">
-        <Separator className="opacity-100 text-[#5D6B68]" />
-      </div>
+          <Separator className="opacity-100 text-[#5D6B68]" />
+        </div>
 
         <SidebarGroup>
           <SidebarGroupContent>
@@ -127,7 +122,7 @@ const DashboardSideber = () => {
       </SidebarContent>
       <SidebarFooter className="text-white">
         <DashboardTrial />
-          <DashboardUserButton/>
+        <DashboardUserButton />
       </SidebarFooter>
     </Sidebar>
   );

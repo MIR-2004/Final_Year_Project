@@ -2,13 +2,14 @@ import OpenAI from "openai";
 import {and, eq} from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
-import { MessageNewEvent, CallEndedEvent, CallTranscriptionReadyEvent, CallSessionParticipantLeftEvent, CallRecordingReadyEvent, CallSessionStartedEvent } from "@stream-io/node-sdk";
+import { CallEndedEvent, CallTranscriptionReadyEvent, CallSessionParticipantLeftEvent, CallRecordingReadyEvent, CallSessionStartedEvent } from "@stream-io/node-sdk";
 import { db } from "@/db";
-import { agents, meetings } from "@/db/schema";
+import { meetings } from "@/db/schema";
 import { streamVideo } from "@/lib/stream-video";
 import { inngest } from "@/inngest/client";
 import { generateAvatarUri } from "@/lib/avatar";
 import { streamChat } from "@/lib/stream-chat";
+import { SYSTEM_AGENT_ID, SYSTEM_AGENT_NAME, SYSTEM_AGENT_INSTRUCTIONS } from "@/constants";
 
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY!});
 
@@ -77,16 +78,10 @@ export async function POST(req:NextRequest) {
             const call = streamVideo.video.call("default", meetingId);
             const callResponse = await call.get();
             
-            // Only end the call if there are no more human participants (excluding AI agents)
-            const [existingMeeting] = await db.select().from(meetings).where(eq(meetings.id, meetingId));
-            if (!existingMeeting) {
-                return NextResponse.json({error: "Meeting not found"}, {status: 404});
-            }
-
-            // Get remaining participants
+            // Only end the call if there are no more human participants
             const participants = callResponse?.call?.session?.participants || [];
             const humanParticipants = participants.filter(
-                (p) => p.user?.id !== existingMeeting.agentId
+                (p) => p.user?.id !== SYSTEM_AGENT_ID
             );
 
             // If no human participants remain, end the call
@@ -134,7 +129,7 @@ export async function POST(req:NextRequest) {
 
         await db.update(meetings).set({recordingUrl: event.call_recording.url}).where(eq(meetings.id, meetingId))
     } else if (eventType === "message.new") {
-        const event = payload as MessageNewEvent;
+        const event = payload as { user?: { id: string }; channel_id?: string; message?: { text?: string } };
         const userId = event.user?.id;
         const channelId = event.channel_id;
         const text = event.message?.text;
@@ -146,6 +141,7 @@ export async function POST(req:NextRequest) {
             );
         }
 
+        // Only process messages from completed meetings
         const [existingMeeting] = await db
         .select()
         .from(meetings)
@@ -155,16 +151,8 @@ export async function POST(req:NextRequest) {
             return NextResponse.json({ error: "Meeting not found" }, { status: 404});
         }
 
-        const [existingAgent] = await db
-        .select()
-        .from(agents)
-        .where(eq(agents.id, existingMeeting.agentId));
-
-        if(!existingAgent){
-            return NextResponse.json({ error: "Agent not found" }, { status: 404});
-        }
-
-        if(userId !== existingAgent.id){
+        // Don't respond to the system agent's own messages
+        if(userId !== SYSTEM_AGENT_ID){
 
         const instructions = `
       You are an AI assistant helping the user revisit a recently completed meeting.
@@ -172,9 +160,9 @@ export async function POST(req:NextRequest) {
       
       ${existingMeeting.summary}
       
-      The following are your original instructions from the live meeting assistant. Please continue to follow these behavioral guidelines as you assist the user:
+      The following are your behavioral guidelines as you assist the user:
       
-      ${existingAgent.instructions}
+      ${SYSTEM_AGENT_INSTRUCTIONS}
       
       The user may ask questions about the meeting, request clarifications, or ask for follow-up actions.
       Always base your responses on the meeting summary above.
@@ -193,7 +181,7 @@ export async function POST(req:NextRequest) {
       .slice(-5)
       .filter((msg) => msg.text && msg.text.trim() !== "")
       .map<ChatCompletionMessageParam>((message) => ({
-        role: message.user?.id === existingAgent.id ? "assistant": "user",
+        role: message.user?.id === SYSTEM_AGENT_ID ? "assistant": "user",
         content: message.text || "",
       }));
 
@@ -216,21 +204,21 @@ export async function POST(req:NextRequest) {
       }
 
       const avatarUrl = generateAvatarUri({
-        seed: existingAgent.name,
+        seed: SYSTEM_AGENT_NAME,
         variant: "botttsNeutral",
       });
 
       streamChat.upsertUser({
-        id: existingAgent.id,
-        name: existingAgent.name,
+        id: SYSTEM_AGENT_ID,
+        name: SYSTEM_AGENT_NAME,
         image: avatarUrl,
       });
 
         channel.sendMessage({
             text: GPTResponseText,
             user: {
-               id: existingAgent.id,
-               name: existingAgent.name,
+               id: SYSTEM_AGENT_ID,
+               name: SYSTEM_AGENT_NAME,
                image: avatarUrl,
             },
       });

@@ -7,7 +7,6 @@ import { GeneratedAvatar } from "@/components/generated-avatar"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns";
 import { 
-    CornerDownRightIcon,
     CircleCheckIcon,
     CircleXIcon,
     ClockArrowUpIcon,
@@ -39,22 +38,9 @@ export const columns: ColumnDef<MeetingGetMany[number]>[] = [
     cell: ({ row }) => (
         <div className="flex flex-col gap-y-1">
             <span className="font-semibold capitalize">{row.original.name}</span>
-            <div className="flex items-center gap-x-2">
-               <div className="flex items-center gap-x-1">
-                 <CornerDownRightIcon className="size-3 text-muted-foreground"/>
-                  <span className="text-sm text-muted-foreground max-w-[200px] truncate capitalize">
-                  {row.original.agent.name}
-                  </span>
-                </div> 
-                <GeneratedAvatar
-                variant="botttsNeutral"
-                seed={row.original.agent.name}
-                className="size-4"
-                />
-                <span className="text-sm text-muted-foreground">
-                    {row.original.startedAt ? format(row.original.startedAt, "MMM d"): ""}
-                </span>
-            </div>
+            <span className="text-sm text-muted-foreground">
+                {row.original.startedAt ? format(row.original.startedAt, "MMM d, yyyy") : "Not started"}
+            </span>
         </div>
     )
   },
@@ -74,7 +60,7 @@ export const columns: ColumnDef<MeetingGetMany[number]>[] = [
   },
   {
     accessorKey: "status",
-    header: "status",
+    header: "Status",
     cell: ({row}) => {
         const Icon = statusIconMap[row.original.status as keyof typeof statusIconMap];
 
@@ -97,7 +83,7 @@ export const columns: ColumnDef<MeetingGetMany[number]>[] = [
 },
     {
         accessorKey: "duration",
-        header: "duration", 
+        header: "Duration", 
         cell: ({row}) => (
             <Badge
             variant="outline"

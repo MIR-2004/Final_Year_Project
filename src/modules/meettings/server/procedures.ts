@@ -1,12 +1,10 @@
 import { z } from "zod";
 import JSONL from "jsonl-parse-stringify";
-import { and, count, desc, eq, getTableColumns, ilike, inArray, sql, or, not } from "drizzle-orm";
+import { and, count, desc, eq, getTableColumns, ilike, inArray, sql, not } from "drizzle-orm";
 import { db } from "@/db";
-import { agents, meetings, user, meetingParticipants } from "@/db/schema";
-import { createTRPCRouter, premiumProcedure, protectedProcedure,
-    //  publicProcedure 
-} from "@/trpc/init";
-import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE } from "@/constants";
+import { meetings, user, meetingParticipants } from "@/db/schema";
+import { createTRPCRouter, premiumProcedure, protectedProcedure } from "@/trpc/init";
+import { DEFAULT_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, MIN_PAGE_SIZE, SYSTEM_AGENT_ID, SYSTEM_AGENT_NAME } from "@/constants";
 import { TRPCError } from "@trpc/server";
 import { meetingsInsertSchema, meetingsUpdateSchema } from "../schemas";
 import { MeetingStatus, StreamTranscriptItem } from "../types";
@@ -14,7 +12,6 @@ import { streamVideo } from "@/lib/stream-video";
 import { generateAvatarUri } from "@/lib/avatar";
 import { streamChat } from "@/lib/stream-chat";
 import OpenAI from "openai";
-// import { nanoid } from "nanoid";
 
 export const meetingssRouter = createTRPCRouter({
         generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
@@ -67,25 +64,24 @@ export const meetingssRouter = createTRPCRouter({
     .from(user)
     .where(inArray(user.id, speakerIds))
         .then((users) => 
-            users.map((user) => ({
-              ...user,
+            users.map((u) => ({
+              ...u,
               image:
-              user.image ?? generateAvatarUri({ seed: user.name, variant: "initials" }),
+              u.image ?? generateAvatarUri({ seed: u.name, variant: "initials" }),
             }))
         );
 
-        const agentSpeakers = await db
-        .select()
-        .from(agents)
-        .where(inArray(agents.id, speakerIds))
-        .then((agents) => 
-            agents.map((agent) => ({
-              ...agent,
-              image: generateAvatarUri({ seed: agent.name, variant: "botttsNeutral" })
-            }))
-        );
+        // Map system agent speaker if present
+        const speakers = [
+            ...userSpeakers,
+            // Include the system agent as a possible speaker
+            {
+                id: SYSTEM_AGENT_ID,
+                name: SYSTEM_AGENT_NAME,
+                image: generateAvatarUri({ seed: SYSTEM_AGENT_NAME, variant: "botttsNeutral" }),
+            },
+        ];
 
-        const speakers = [...userSpeakers, ...agentSpeakers];
         const transcriptWithSpeaker = transcript.map((item) => {
             const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
             if (!speaker) {
@@ -181,7 +177,7 @@ export const meetingssRouter = createTRPCRouter({
         .mutation(async ({ input, ctx }) => {
             const [createdMeeting] = await db
                 .insert(meetings)
-                .values({ ...input, userId: ctx.auth.user.id, })
+                .values({ ...input, userId: ctx.auth.user.id })
                 .returning();
 
             const call = streamVideo.video.call("default", createdMeeting.id);
@@ -204,25 +200,18 @@ export const meetingssRouter = createTRPCRouter({
                         }
                     }
                 }
-            })
+            });
 
-            const [existingAgent] = await db.select().from(agents).where(eq(agents.id, createdMeeting.agentId));
-
-            if (!existingAgent) {
-                throw new TRPCError({
-                    code: "NOT_FOUND",
-                    message: "Agent Not Found",
-                })
-            }
-
+            // Register the system agent as a Stream user so it can
+            // respond in post-meeting chat channels.
             await streamVideo.upsertUsers([
                 {
-                    id: existingAgent.id,
-                    name: existingAgent.name,
+                    id: SYSTEM_AGENT_ID,
+                    name: SYSTEM_AGENT_NAME,
                     role: "user",
-                    image: generateAvatarUri({ seed: existingAgent.name, variant: "botttsNeutral"})
+                    image: generateAvatarUri({ seed: SYSTEM_AGENT_NAME, variant: "botttsNeutral" })
                 }
-            ])
+            ]);
 
             return createdMeeting;
         }),
@@ -234,12 +223,10 @@ export const meetingssRouter = createTRPCRouter({
             const [existingMeeting] = await db
                 .select({
                     ...getTableColumns(meetings),
-                    agent: agents,
                     host: user,
                     duration: sql<number>`EXTRACT(EPOCH FROM (meetings.ended_at - meetings.started_at))`.as("duration"),
                 })
                 .from(meetings)
-                .innerJoin(agents, eq(meetings.agentId, agents.id))
                 .innerJoin(user, eq(meetings.userId, user.id))
                 .where(
                     eq(meetings.id, input.id)
@@ -256,7 +243,7 @@ export const meetingssRouter = createTRPCRouter({
         .input(z.object({
             page: z.number().default(DEFAULT_PAGE),
             pageSize: z.number().min(MIN_PAGE_SIZE).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
-            search: z.string().nullish(), agentId: z.string().nullish(),
+            search: z.string().nullish(),
             status: z.enum([
                 MeetingStatus.Upcoming,
                 MeetingStatus.Active,
@@ -269,7 +256,7 @@ export const meetingssRouter = createTRPCRouter({
         })
         )
         .query(async ({ ctx, input }) => {
-            const { search, page, pageSize, status, agentId, type } = input;
+            const { search, page, pageSize, status, type } = input;
 
             const participantMeetingIds = db.select({ id: meetingParticipants.meetingId })
                 .from(meetingParticipants)
@@ -278,12 +265,10 @@ export const meetingssRouter = createTRPCRouter({
             const data = await db
                 .select({
                     ...getTableColumns(meetings),
-                    agent: agents,
                     host: user,
                     duration: sql<number>`EXTRACT(EPOCH FROM (meetings.ended_at - meetings.started_at))`.as("duration"),
                 })
                 .from(meetings)
-                .innerJoin(agents, eq(agents.id, meetings.agentId))
                 .innerJoin(user, eq(meetings.userId, user.id))
                 .where(
                     and(
@@ -293,7 +278,6 @@ export const meetingssRouter = createTRPCRouter({
                         ) : eq(meetings.userId, ctx.auth.user.id),
                         search ? ilike(meetings.name, `%${search}%`) : undefined,
                         status ? eq(meetings.status, status) : undefined,
-                        agentId ? eq(meetings.agentId, agentId) : undefined,
                     )
                 )
                 .orderBy(desc(meetings.createdAt), desc(meetings.id))
@@ -311,7 +295,6 @@ export const meetingssRouter = createTRPCRouter({
                         ) : eq(meetings.userId, ctx.auth.user.id),
                         search ? ilike(meetings.name, `%${search}%`) : undefined,
                         status ? eq(meetings.status, status) : undefined,
-                        agentId ? eq(meetings.agentId, agentId) : undefined,
                     )
                 );
 

@@ -4,13 +4,13 @@ import Markdown from "react-markdown";
 import { MeetingGetOne } from "../../types";
 import { GeneratedAvatar } from "@/components/generated-avatar";
 import { FileTextIcon, BookOpenTextIcon, FileVideoIcon, ClockFadingIcon, SparklesIcon, MessageSquareIcon } from "lucide-react";
-import Link from "next/link";
 import { format} from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/utils";
 import { Transcript } from "./transcript";
 import { ChatProvider } from "./chat-provider";
 import { ChatHistoryProvider } from "./chat-history-provider";
+import { SYSTEM_AGENT_NAME } from "@/constants";
 
 interface Props{
     data: MeetingGetOne;
@@ -68,10 +68,10 @@ export const CompletedState = ({data}: Props) => {
                         <div className="px-4 py-5 gap-y-5 flex flex-col col-span-5">
                             <h2>{data.name}</h2>
                             <div className="flex gap-x-2 items-center">
-                                <Link href={`/agents/${data.agent.id}`} className="flex items-center gap-x-2 underline underline-offset-4 capitalize">
-                                    <GeneratedAvatar variant="botttsNeutral" seed={data.agent.name} className="size-5"/>
-                                    {data.agent.name}
-                                </Link>{" "}
+                                <div className="flex items-center gap-x-2 capitalize">
+                                    <GeneratedAvatar variant="botttsNeutral" seed={SYSTEM_AGENT_NAME} className="size-5"/>
+                                    {SYSTEM_AGENT_NAME}
+                                </div>{" "}
                                 <p>{data.startedAt ? format(data.startedAt, "PPP") : "" }</p>
                             </div>
                             <div className="flex gap-x-2 items-center">
@@ -117,8 +117,6 @@ export const CompletedState = ({data}: Props) => {
                                 blockquote: (props) => (   
                                     <blockquote className="border-l-4 italic my-4b" {...props}/>
                                 ),
-                                
-                                
                                 
 
                             }}>

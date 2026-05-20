@@ -1,8 +1,6 @@
 import { StreamTheme, useCall } from "@stream-io/video-react-sdk";
 import { useState, useRef } from "react";
 import { StreamChat } from "stream-chat";
-import { useTRPC } from "@/trpc/client";
-import { useMutation } from "@tanstack/react-query";
 import { CallLobby } from "./call-lobby";
 import { CallActive } from "./call-active";
 import { CallEnded } from "./call-ended";
@@ -15,7 +13,6 @@ interface Props {
 
 export const CallUI = ({ meetingId, meetingName, chatClient }: Props) => {
     const call = useCall();
-    const trpc = useTRPC();
 
     const [show, setShow] = useState<"lobby" | "call" | "ended">("lobby");
     const isLeavingRef = useRef(false);
