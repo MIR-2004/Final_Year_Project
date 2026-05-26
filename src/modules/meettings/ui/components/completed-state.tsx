@@ -3,21 +3,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Markdown from "react-markdown";
 import { MeetingGetOne } from "../../types";
 import { GeneratedAvatar } from "@/components/generated-avatar";
-import { FileTextIcon, BookOpenTextIcon, FileVideoIcon, ClockFadingIcon, SparklesIcon, MessageSquareIcon } from "lucide-react";
+import { FileTextIcon, BookOpenTextIcon, FileVideoIcon, ClockFadingIcon, MessageSquareIcon, UsersIcon, SparklesIcon } from "lucide-react";
 import { format} from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/utils";
 import { Transcript } from "./transcript";
-import { ChatProvider } from "./chat-provider";
 import { ChatHistoryProvider } from "./chat-history-provider";
 import { SYSTEM_AGENT_NAME } from "@/constants";
+import { MeetingParticipants } from "./meeting-participants";
 
 interface Props{
     data: MeetingGetOne;
+    isHost?: boolean;
 }
 
 
-export const CompletedState = ({data}: Props) => {
+export const CompletedState = ({data, isHost}: Props) => {
     return (
         <div className="flex flex-col gap-y-4">
             <Tabs defaultValue="summary">
@@ -40,19 +41,18 @@ export const CompletedState = ({data}: Props) => {
                                 <MessageSquareIcon />
                                 Chat
                             </TabsTrigger>
-                             <TabsTrigger value="chat" className="text-mute-foreground rounded-none bg-background data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-b-primary data-[state=active]:text-accent-foreground h-full hover:text-accent-foreground">
-                                <SparklesIcon />
-                                Ask AI
+                            {isHost && (
+                             <TabsTrigger value="participants" className="text-mute-foreground rounded-none bg-background data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-b-primary data-[state=active]:text-accent-foreground h-full hover:text-accent-foreground">
+                                <UsersIcon />
+                                Participants
                             </TabsTrigger>
+                            )}
                         </TabsList>
                         <ScrollBar orientation="horizontal"/>
                     </ScrollArea>
                 </div>
                 <TabsContent value="chatHistory">
                     <ChatHistoryProvider meetingId={data.id} />
-                </TabsContent>
-                <TabsContent value="chat">
-                    <ChatProvider meetingId={data.id} meetingName={data.name} />
                 </TabsContent>
                 <TabsContent value="transcript">
                     <Transcript meetingId={data.id} />
@@ -62,6 +62,13 @@ export const CompletedState = ({data}: Props) => {
                         <video src={data.recordingUrl!} className="w-full rounded-lg" controls/>
                     </div>
                 </TabsContent>
+                {isHost && (
+                    <TabsContent value="participants">
+                        <div className="bg-white rounded-lg border">
+                            <MeetingParticipants meetingId={data.id} />
+                        </div>
+                    </TabsContent>
+                )}
 
                 <TabsContent value="summery">
                     <div className="bg-white rounded-lg border">

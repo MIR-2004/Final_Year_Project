@@ -108,25 +108,42 @@ export const meetingssRouter = createTRPCRouter({
         return transcriptWithSpeaker;
     }),
 
-    generateToken: protectedProcedure.mutation(async ({ ctx }) => {
-        await streamVideo.upsertUsers([
-            {
-                id: ctx.auth.user.id,
-                name: ctx.auth.user.name,
-                role: "admin",
-                image: ctx.auth.user.image ?? generateAvatarUri({ seed: ctx.auth.user.name, variant: "initials" })
+    generateToken: protectedProcedure
+        .input(z.object({ meetingId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const [meeting] = await db
+                .select()
+                .from(meetings)
+                .where(eq(meetings.id, input.meetingId));
+
+            const isHost = meeting ? meeting.userId === ctx.auth.user.id : false;
+            const role = isHost ? "admin" : "user";
+
+            if (isHost && meeting && meeting.status === "upcoming") {
+                await db
+                    .update(meetings)
+                    .set({ status: "active", startedAt: new Date() })
+                    .where(eq(meetings.id, input.meetingId));
             }
-        ]);
 
-        const expirationTime = Math.floor(Date.now() / 1000) + 3600;
+            await streamVideo.upsertUsers([
+                {
+                    id: ctx.auth.user.id,
+                    name: ctx.auth.user.name,
+                    role: role,
+                    image: ctx.auth.user.image ?? generateAvatarUri({ seed: ctx.auth.user.name, variant: "initials" })
+                }
+            ]);
 
-        const token = streamVideo.generateUserToken({
-            user_id: ctx.auth.user.id,
-            exp: expirationTime,
-        });
+            const expirationTime = Math.floor(Date.now() / 1000) + 3600;
 
-        return token;
-    }),
+            const token = streamVideo.generateUserToken({
+                user_id: ctx.auth.user.id,
+                exp: expirationTime,
+            });
+
+            return token;
+        }),
     remove: protectedProcedure
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
@@ -237,6 +254,37 @@ export const meetingssRouter = createTRPCRouter({
             }
 
             return existingMeeting;
+        }),
+
+    getParticipants: protectedProcedure
+        .input(z.object({ meetingId: z.string() }))
+        .query(async ({ input, ctx }) => {
+            const [meeting] = await db
+                .select()
+                .from(meetings)
+                .where(and(eq(meetings.id, input.meetingId), eq(meetings.userId, ctx.auth.user.id)));
+
+            if (!meeting) {
+                throw new TRPCError({
+                    code: "UNAUTHORIZED",
+                    message: "Only the meeting host can view participant details.",
+                });
+            }
+
+            const participants = await db
+                .select({
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    image: user.image,
+                    joinedAt: meetingParticipants.joinedAt,
+                })
+                .from(meetingParticipants)
+                .innerJoin(user, eq(meetingParticipants.userId, user.id))
+                .where(eq(meetingParticipants.meetingId, input.meetingId))
+                .orderBy(desc(meetingParticipants.joinedAt));
+
+            return participants;
         }),
 
     getMany: protectedProcedure

@@ -14,6 +14,7 @@ import { CancelledState } from "../components/cancelled-state";
 import { ProcessingState } from "../components/processing-state";
 import { CompletedState } from "../components/completed-state";
 import { UpcomingState } from "../components/upcoming-state";
+import { authClient } from "@/lib/auth-client";
 
 interface Props {
     meetingId: string;
@@ -23,6 +24,7 @@ export const MeetingIdView = ({ meetingId }: Props) => {
     const trpc = useTRPC();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { data: session } = authClient.useSession();
 
     const [UpdateMeetingDialogOpen, setUpdateMeetingDialogOpen] = useState(false);
 
@@ -58,7 +60,7 @@ export const MeetingIdView = ({ meetingId }: Props) => {
     const isCompleted = data.status === "completed";
     const isCancelled = data.status === "cancelled";
     const isProcessing = data.status === "processing";
-
+    const isHost = data.userId === session?.user?.id;
 
     return (
         <>
@@ -76,12 +78,13 @@ export const MeetingIdView = ({ meetingId }: Props) => {
                     onRemove={handleRemoveMeeting}
                 />
 
-                {isCompleted && <CompletedState data={data} />}
+                {isCompleted && <CompletedState data={data} isHost={isHost} />}
                 {isActive && <ActiveState meetingId={meetingId} />}
                 {isCancelled && <CancelledState />}
                 {isProcessing && <ProcessingState />}
                 {isUpcoming && (<UpcomingState
                     meetingId={meetingId}
+                    isHost={isHost}
                 />)}
             </div>
         </>
