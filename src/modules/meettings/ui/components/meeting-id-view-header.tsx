@@ -20,15 +20,19 @@ import {
 interface Props {
     meetingId: string;
     meetingName: string;
+    isHost: boolean;
     onEdit: () => void;
     onRemove: () => void;
+    disabled?: boolean;
 }
 
 export const MeetingIdViewHeader = ({
    meetingId,
    meetingName,
+   isHost,
    onEdit,
-   onRemove
+   onRemove,
+   disabled
 }: Props) => {
      return (
         <div className="flex items-center justify-between">
@@ -54,28 +58,27 @@ export const MeetingIdViewHeader = ({
                </BreadcrumbList>
             </Breadcrumb>
             {/* without modal={false}, the dialog that this dropdown opens cause the website to get unclickable */}
-            <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost">
-                     <MoreVerticalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-               
-                  <DropdownMenuContent align="end">
-                     <DropdownMenuItem onClick={onEdit}>
-                         <PencilIcon className="size-4 text-black" />
-                         Edit
-                     </DropdownMenuItem>
-
-                      <DropdownMenuItem onClick={onRemove}>
-                         <TrashIcon className="size-4 text-black" />
-                         Delete
-                     </DropdownMenuItem>
-
-
-                  </DropdownMenuContent>
-               
-            </DropdownMenu>
+            {isHost && (
+                <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" disabled={disabled}>
+                         <MoreVerticalIcon />
+                      </Button>
+                    </DropdownMenuTrigger>
+                   
+                      <DropdownMenuContent align="end">
+                         <DropdownMenuItem onClick={onEdit} disabled={disabled}>
+                             <PencilIcon className="size-4 text-black" />
+                             Edit
+                         </DropdownMenuItem>
+    
+                          <DropdownMenuItem onClick={onRemove} disabled={disabled}>
+                             <TrashIcon className="size-4 text-black" />
+                             Delete
+                         </DropdownMenuItem>
+                      </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </div>
      )
 }

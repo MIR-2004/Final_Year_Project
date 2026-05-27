@@ -57,11 +57,10 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
                         {/* Chat toggle */}
                         <button
                             onClick={() => setIsChatOpen((prev) => !prev)}
-                            className={`flex items-center gap-2 transition px-3 py-1.5 rounded-full text-sm ${
-                                isChatOpen
+                            className={`flex items-center gap-2 transition px-3 py-1.5 rounded-full text-sm ${isChatOpen
                                     ? "bg-blue-600 hover:bg-blue-700"
                                     : "bg-white/10 hover:bg-white/20"
-                            }`}
+                                }`}
                         >
                             <MessageSquare className="size-4" />
                             Chat
@@ -71,17 +70,15 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
                         <div className="flex bg-white/10 rounded-full p-1">
                             <button
                                 onClick={() => setLayout("grid")}
-                                className={`p-1.5 rounded-full transition ${
-                                    layout === "grid" ? "bg-white/20" : "hover:bg-white/10"
-                                }`}
+                                className={`p-1.5 rounded-full transition ${layout === "grid" ? "bg-white/20" : "hover:bg-white/10"
+                                    }`}
                             >
                                 <LayoutGrid className="size-4" />
                             </button>
                             <button
                                 onClick={() => setLayout("speaker")}
-                                className={`p-1.5 rounded-full transition ${
-                                    layout === "speaker" ? "bg-white/20" : "hover:bg-white/10"
-                                }`}
+                                className={`p-1.5 rounded-full transition ${layout === "speaker" ? "bg-white/20" : "hover:bg-white/10"
+                                    }`}
                             >
                                 <User className="size-4" />
                             </button>
@@ -102,10 +99,10 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
 
             {/* ── Chat sidebar ── */}
             {isChatOpen && (
-                <CallChat 
-                    chatClient={chatClient} 
-                    meetingId={meetingId} 
-                    onClose={() => setIsChatOpen(false)} 
+                <CallChat
+                    chatClient={chatClient}
+                    meetingId={meetingId}
+                    onClose={() => setIsChatOpen(false)}
                 />
             )}
 

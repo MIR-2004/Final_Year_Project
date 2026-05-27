@@ -1,5 +1,5 @@
 
-import { JSX, useState }  from "react";
+import { JSX, useState, useRef }  from "react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDialog } from "@/components/responsive-dialog";
 
@@ -8,12 +8,14 @@ import { ResponsiveDialog } from "@/components/responsive-dialog";
 export const useConfirm = (
     title: string,
     description: string,
-) : [() => JSX.Element, () => Promise<unknown>] => {
+) : [({ isLoading }: { isLoading?: boolean }) => JSX.Element, () => Promise<unknown>] => {
     const [promise, setPromise] = useState<{
         resolve: (value: boolean) => void;
     } | null>(null);
+    const isSubmittingRef = useRef(false);
 
     const confirm = () => {
+        isSubmittingRef.current = false;
         return new Promise((resolve) => {
             setPromise({ resolve });
         });
@@ -24,18 +26,22 @@ export const useConfirm = (
     };
 
     const handleConfirm = () => {
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
         promise?.resolve(true);
         handelClose();
     };
     const handleCancel = () => {
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
         promise?.resolve(false);
         handelClose();
     };
 
-    const ConfirmationDialog = () => (
+    const ConfirmationDialog = ({ isLoading }: { isLoading?: boolean } = {}) => (
         <ResponsiveDialog
             open={promise != null}
-            onOpenChange={handelClose}
+            onOpenChange={isLoading ? () => {} : handelClose}
             title={title}
             description={description}
             >      
@@ -44,14 +50,16 @@ export const useConfirm = (
                      onClick={handleCancel}
                      variant="outline"
                      className="w-full lg:w-auto"
+                     disabled={isLoading}
                      >
                     Cancel
                 </Button>
                 <Button
-                onClick={handleConfirm}
+                     onClick={handleConfirm}
                      className="w-full lg:w-auto"
+                     disabled={isLoading}
                      >
-                    Confirm
+                    {isLoading ? "Deleting..." : "Confirm"}
                 </Button>
                 </div>      
         </ResponsiveDialog>

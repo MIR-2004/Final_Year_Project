@@ -50,6 +50,7 @@ export const MeetingIdView = ({ meetingId }: Props) => {
     );
 
     const handleRemoveMeeting = async () => {
+        if (removeMeeting.isPending) return;
         const ok = await confirmRemove();
         if (!ok) return;
         await removeMeeting.mutateAsync({ id: meetingId });
@@ -64,7 +65,7 @@ export const MeetingIdView = ({ meetingId }: Props) => {
 
     return (
         <>
-            <RemoveConfirmation />
+            <RemoveConfirmation isLoading={removeMeeting.isPending} />
             <UpdateMeetingDialog
                 open={UpdateMeetingDialogOpen}
                 onOpenChange={setUpdateMeetingDialogOpen}
@@ -74,8 +75,10 @@ export const MeetingIdView = ({ meetingId }: Props) => {
                 <MeetingIdViewHeader
                     meetingId={meetingId}
                     meetingName={data?.name}
+                    isHost={isHost}
                     onEdit={() => setUpdateMeetingDialogOpen(true)}
                     onRemove={handleRemoveMeeting}
+                    disabled={removeMeeting.isPending}
                 />
 
                 {isCompleted && <CompletedState data={data} isHost={isHost} />}

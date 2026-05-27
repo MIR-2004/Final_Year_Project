@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { eq, count } from "drizzle-orm";
 import { meetings } from "@/db/schema";
-import { polarClient} from "@/lib/polar";
+import { polarClient } from "@/lib/polar";
 import {
     createTRPCRouter,
     protectedProcedure,
@@ -14,7 +14,7 @@ export const premiumRouter = createTRPCRouter({
         });
 
         const subscription = customer.activeSubscriptions[0];
-        if(!subscription){
+        if (!subscription) {
             return null;
         }
 
@@ -38,18 +38,18 @@ export const premiumRouter = createTRPCRouter({
         });
 
         const subscription = customer.activeSubscriptions[0];
-        if(subscription){
+        if (subscription) {
             return null;
         }
 
         const [userMeetings] = await db
-        .select({
-            count : count(meetings.id),
-        })
-        .from(meetings)
-        .where(eq(meetings.userId, ctx.auth.user.id));
+            .select({
+                count: count(meetings.id),
+            })
+            .from(meetings)
+            .where(eq(meetings.userId, ctx.auth.user.id));
 
-        return{
+        return {
             meetingCount: userMeetings.count,
         }
     })

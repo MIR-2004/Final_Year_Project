@@ -14,7 +14,7 @@ import { streamChat } from "@/lib/stream-chat";
 import OpenAI from "openai";
 
 export const meetingssRouter = createTRPCRouter({
-        generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
+    generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
         const token = streamChat.createToken(ctx.auth.user.id);
         await streamChat.upsertUsers([
             {
@@ -28,85 +28,85 @@ export const meetingssRouter = createTRPCRouter({
 
 
     getTranscript: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ input, ctx }) => {
-        const [existingMeeting] = await db
-        .select()
-        .from(meetings)
-        .where(
-            and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id))
-        );
+        .input(z.object({ id: z.string() }))
+        .query(async ({ input, ctx }) => {
+            const [existingMeeting] = await db
+                .select()
+                .from(meetings)
+                .where(
+                    and(eq(meetings.id, input.id), eq(meetings.userId, ctx.auth.user.id))
+                );
 
-        if(!existingMeeting){
-        throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Meeting not found",
-        });
-    }
+            if (!existingMeeting) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Meeting not found",
+                });
+            }
 
-    if(!existingMeeting.transcriptUrl){
-        return [];
-    }
-      
-    const transcript = await fetch(existingMeeting.transcriptUrl)
-    .then((res) => res.text())
-    .then((text) => JSONL.parse<StreamTranscriptItem>(text))
-    .catch(() => {
-        return [];
-    });
+            if (!existingMeeting.transcriptUrl) {
+                return [];
+            }
 
-    const speakerIds = [
-        ...new Set(transcript.map((item) => item.speaker_id)),
-    ];
+            const transcript = await fetch(existingMeeting.transcriptUrl)
+                .then((res) => res.text())
+                .then((text) => JSONL.parse<StreamTranscriptItem>(text))
+                .catch(() => {
+                    return [];
+                });
 
-    const userSpeakers = await db
-    .select()
-    .from(user)
-    .where(inArray(user.id, speakerIds))
-        .then((users) => 
-            users.map((u) => ({
-              ...u,
-              image:
-              u.image ?? generateAvatarUri({ seed: u.name, variant: "initials" }),
-            }))
-        );
+            const speakerIds = [
+                ...new Set(transcript.map((item) => item.speaker_id)),
+            ];
 
-        // Map system agent speaker if present
-        const speakers = [
-            ...userSpeakers,
-            // Include the system agent as a possible speaker
-            {
-                id: SYSTEM_AGENT_ID,
-                name: SYSTEM_AGENT_NAME,
-                image: generateAvatarUri({ seed: SYSTEM_AGENT_NAME, variant: "botttsNeutral" }),
-            },
-        ];
+            const userSpeakers = await db
+                .select()
+                .from(user)
+                .where(inArray(user.id, speakerIds))
+                .then((users) =>
+                    users.map((u) => ({
+                        ...u,
+                        image:
+                            u.image ?? generateAvatarUri({ seed: u.name, variant: "initials" }),
+                    }))
+                );
 
-        const transcriptWithSpeaker = transcript.map((item) => {
-            const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
-            if (!speaker) {
+            // Map system agent speaker if present
+            const speakers = [
+                ...userSpeakers,
+                // Include the system agent as a possible speaker
+                {
+                    id: SYSTEM_AGENT_ID,
+                    name: SYSTEM_AGENT_NAME,
+                    image: generateAvatarUri({ seed: SYSTEM_AGENT_NAME, variant: "botttsNeutral" }),
+                },
+            ];
+
+            const transcriptWithSpeaker = transcript.map((item) => {
+                const speaker = speakers.find((speaker) => speaker.id === item.speaker_id);
+                if (!speaker) {
+                    return {
+                        ...item,
+                        user: {
+                            name: "Unknown",
+                            image: generateAvatarUri({
+                                seed: "Unknown",
+                                variant: "initials",
+                            }),
+                        }
+                    };
+                }
+
                 return {
                     ...item,
                     user: {
-                        name: "Unknown",
-                        image: generateAvatarUri({
-                            seed: "Unknown",
-                            variant: "initials",
-                        }),
+                        name: speaker.name,
+                        image: speaker.image,
                     }
                 };
-            }
-
-            return {
-                ...item,
-                user: {
-                    name: speaker.name,
-                    image: speaker.image,
-                }
-            };
-        });
-        return transcriptWithSpeaker;
-    }),
+            });
+            return transcriptWithSpeaker;
+        }),
 
     generateToken: protectedProcedure
         .input(z.object({ meetingId: z.string() }))

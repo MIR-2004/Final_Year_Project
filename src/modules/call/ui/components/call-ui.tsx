@@ -1,4 +1,4 @@
-import { StreamTheme, useCall } from "@stream-io/video-react-sdk";
+import { StreamTheme, useCall, CallingState } from "@stream-io/video-react-sdk";
 import { useState, useRef } from "react";
 import { StreamChat } from "stream-chat";
 import { CallLobby } from "./call-lobby";
@@ -15,12 +15,33 @@ export const CallUI = ({ meetingId, meetingName, chatClient }: Props) => {
     const call = useCall();
 
     const [show, setShow] = useState<"lobby" | "call" | "ended">("lobby");
+    const [isJoining, setIsJoining] = useState(false);
     const isLeavingRef = useRef(false);
 
     const handleJoin = async () => {
-        if (!call) return;
-        await call.join();
-        setShow("call");
+        if (!call || isJoining) return;
+
+        const callingState = call.state.callingState;
+        if (callingState === CallingState.JOINED) {
+            setShow("call");
+            return;
+        }
+        if (
+            callingState === CallingState.JOINING ||
+            callingState === CallingState.RECONNECTING ||
+            callingState === CallingState.MIGRATING
+        ) {
+            return;
+        }
+
+        setIsJoining(true);
+        try {
+            await call.join();
+            setShow("call");
+        } catch (error) {
+            console.error("Failed to join call:", error);
+            setIsJoining(false);
+        }
     };
 
     const handleLeave = async () => {
@@ -44,7 +65,7 @@ export const CallUI = ({ meetingId, meetingName, chatClient }: Props) => {
 
     return (
         <StreamTheme className="h-full">
-            {show === "lobby" && <CallLobby onJoin={handleJoin} />}
+            {show === "lobby" && <CallLobby onJoin={handleJoin} isJoining={isJoining} />}
             {show === "call" && (
                 <CallActive
                     onLeave={handleLeave}
