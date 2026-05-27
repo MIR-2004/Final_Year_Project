@@ -11,6 +11,7 @@ import { Transcript } from "./transcript";
 import { ChatHistoryProvider } from "./chat-history-provider";
 import { SYSTEM_AGENT_NAME } from "@/constants";
 import { MeetingParticipants } from "./meeting-participants";
+import { authClient } from "@/lib/auth-client";
 
 interface Props{
     data: MeetingGetOne;
@@ -19,6 +20,7 @@ interface Props{
 
 
 export const CompletedState = ({data, isHost}: Props) => {
+    const { data: session } = authClient.useSession();
     return (
         <div className="flex flex-col gap-y-4">
             <Tabs defaultValue="summary">
@@ -65,7 +67,11 @@ export const CompletedState = ({data, isHost}: Props) => {
                 {isHost && (
                     <TabsContent value="participants">
                         <div className="bg-white rounded-lg border">
-                            <MeetingParticipants meetingId={data.id} />
+                            <MeetingParticipants
+                                meetingId={data.id}
+                                hostId={data.userId}
+                                currentUserId={session?.user?.id}
+                            />
                         </div>
                     </TabsContent>
                 )}
