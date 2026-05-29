@@ -3,7 +3,26 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { CallControls, SpeakerLayout, PaginatedGridLayout, DefaultParticipantViewUI, useCallStateHooks } from "@stream-io/video-react-sdk";
+import {
+    CallControls,
+    SpeakerLayout,
+    PaginatedGridLayout,
+    DefaultParticipantViewUI,
+    useCallStateHooks,
+    useParticipantViewContext,
+    GenericMenu,
+    GenericMenuButtonItem,
+    useMenuContext,
+    Icon,
+    useCall
+} from "@stream-io/video-react-sdk";
+import {
+    hasAudio,
+    hasVideo,
+    hasScreenShare,
+    hasScreenShareAudio,
+    OwnCapability
+} from "@stream-io/video-client";
 import { LayoutGrid, User, Copy, Check, MessageSquare } from "lucide-react";
 import { StreamChat } from "stream-chat";
 import { CallChat } from "./call-chat";
@@ -46,15 +65,15 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
             items.forEach((item) => {
                 const el = item as HTMLElement;
                 const text = el.textContent?.trim().toLowerCase() || "";
-                
+
                 // Allowed options: "pin", "unpin", "enter fullscreen", "exit fullscreen", "fullscreen"
                 // Restricted options (host-only moderation actions):
-                const isRestricted = 
-                    text.includes("block") || 
-                    text.includes("kick") || 
-                    text.includes("everyone") || 
-                    text.includes("allow") || 
-                    text.includes("disable") || 
+                const isRestricted =
+                    text.includes("block") ||
+                    text.includes("kick") ||
+                    text.includes("everyone") ||
+                    text.includes("allow") ||
+                    text.includes("disable") ||
                     text.includes("mute");
 
                 if (isRestricted) {
@@ -71,10 +90,253 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
         return () => observer.disconnect();
     }, [isHostOrCoHost]);
 
+    const CustomParticipantActionsContextMenu = () => {
+        const { participant, participantViewElement, videoElement } = useParticipantViewContext();
+        const [fullscreenModeOn, setFullscreenModeOn] = useState(!!document.fullscreenElement);
+        const call = useCall();
+        const { close } = useMenuContext() || {};
+
+        const { pin, sessionId, userId, isLocalParticipant } = participant;
+
+        const hasAudioTrack = hasAudio(participant);
+        const hasVideoTrack = hasVideo(participant);
+        const hasScreenShareTrack = hasScreenShare(participant);
+        const hasScreenShareAudioTrack = hasScreenShareAudio(participant);
+
+        const [isPiP, setIsPiP] = useState(videoElement ? document.pictureInPictureElement === videoElement : false);
+
+        useEffect(() => {
+            if (!videoElement) return;
+            const handlePiP = () => {
+                setIsPiP(document.pictureInPictureElement === videoElement);
+            };
+            videoElement.addEventListener("enterpictureinpicture", handlePiP);
+            videoElement.addEventListener("leavepictureinpicture", handlePiP);
+            return () => {
+                videoElement.removeEventListener("enterpictureinpicture", handlePiP);
+                videoElement.removeEventListener("leavepictureinpicture", handlePiP);
+            };
+        }, [videoElement]);
+
+        const blockUser = () => {
+            call?.blockUser(userId);
+            close?.();
+        };
+
+        const kickUser = () => {
+            call?.kickUser({ user_id: userId });
+            close?.();
+        };
+
+        const muteAudio = () => {
+            call?.muteUser(userId, "audio");
+            close?.();
+        };
+
+        const muteVideo = () => {
+            call?.muteUser(userId, "video");
+            close?.();
+        };
+
+        const muteScreenShare = () => {
+            call?.muteUser(userId, "screenshare");
+            close?.();
+        };
+
+        const muteScreenShareAudio = () => {
+            call?.muteUser(userId, "screenshare_audio");
+            close?.();
+        };
+
+        const grantPermission = (permission: string) => () => {
+            call?.updateUserPermissions({
+                user_id: userId,
+                grant_permissions: [permission],
+            });
+            close?.();
+        };
+
+        const revokePermission = (permission: string) => () => {
+            call?.updateUserPermissions({
+                user_id: userId,
+                revoke_permissions: [permission],
+            });
+            close?.();
+        };
+
+        const pinForEveryone = () => {
+            call?.pinForEveryone({ user_id: userId, session_id: sessionId }).catch((err) => {
+                console.error(`Failed to pin participant ${userId}`, err);
+            });
+            close?.();
+        };
+
+        const unpinForEveryone = () => {
+            call?.unpinForEveryone({ user_id: userId, session_id: sessionId }).catch((err) => {
+                console.error(`Failed to unpin participant ${userId}`, err);
+            });
+            close?.();
+        };
+
+        const toggleParticipantPin = () => {
+            if (pin) {
+                call?.unpin(sessionId);
+            } else {
+                call?.pin(sessionId);
+            }
+            close?.();
+        };
+
+        const toggleFullscreenMode = () => {
+            if (!fullscreenModeOn) {
+                participantViewElement?.requestFullscreen().catch(console.error);
+            } else {
+                document.exitFullscreen().catch(console.error);
+            }
+            close?.();
+        };
+
+        const togglePictureInPicture = () => {
+            if (videoElement && !isPiP) {
+                videoElement.requestPictureInPicture().catch(console.error);
+            } else {
+                document.exitPictureInPicture().catch(console.error);
+            }
+            close?.();
+        };
+
+        useEffect(() => {
+            const handleFullscreenChange = () => {
+                setFullscreenModeOn(!!document.fullscreenElement);
+            };
+            document.addEventListener("fullscreenchange", handleFullscreenChange);
+            return () => {
+                document.removeEventListener("fullscreenchange", handleFullscreenChange);
+            };
+        }, []);
+
+        // Google Meet protection rules:
+        const isTargetSelf = isLocalParticipant || userId === currentUserId;
+        const isTargetHost = userId === meeting?.userId;
+
+        // Determine if moderation options are allowed:
+        let showModerationOptions = false;
+        if (isOriginalHost) {
+            // Host can manage everyone except themselves
+            showModerationOptions = !isTargetSelf;
+        } else if (isCoHost) {
+            // Co-host can manage standard users (and other co-hosts), but not host or themselves
+            showModerationOptions = !isTargetSelf && !isTargetHost;
+        } else {
+            // Normal participants see absolutely no moderation options (only pin/fullscreen)
+            showModerationOptions = false;
+        }
+
+        return (
+            <GenericMenu onItemClick={close}>
+                <GenericMenuButtonItem
+                    onClick={toggleParticipantPin}
+                    disabled={pin && !pin.isLocalPin}
+                >
+                    <Icon icon="pin" />
+                    {pin ? "Unpin" : "Pin"}
+                </GenericMenuButtonItem>
+
+                {showModerationOptions && (
+                    <>
+                        <GenericMenuButtonItem
+                            onClick={pinForEveryone}
+                            disabled={pin && !pin.isLocalPin}
+                        >
+                            <Icon icon="pin" />
+                            Pin for everyone
+                        </GenericMenuButtonItem>
+                        <GenericMenuButtonItem
+                            onClick={unpinForEveryone}
+                            disabled={!pin || pin.isLocalPin}
+                        >
+                            <Icon icon="pin" />
+                            Unpin for everyone
+                        </GenericMenuButtonItem>
+
+                        <GenericMenuButtonItem onClick={blockUser}>
+                            <Icon icon="not-allowed" />
+                            Block
+                        </GenericMenuButtonItem>
+                        <GenericMenuButtonItem onClick={kickUser}>
+                            <Icon icon="kick-user" />
+                            Kick
+                        </GenericMenuButtonItem>
+
+                        {hasVideoTrack && (
+                            <GenericMenuButtonItem onClick={muteVideo}>
+                                <Icon icon="camera-off-outline" />
+                                Turn off video
+                            </GenericMenuButtonItem>
+                        )}
+                        {hasScreenShareTrack && (
+                            <GenericMenuButtonItem onClick={muteScreenShare}>
+                                <Icon icon="screen-share-off" />
+                                Turn off screen share
+                            </GenericMenuButtonItem>
+                        )}
+                        {hasAudioTrack && (
+                            <GenericMenuButtonItem onClick={muteAudio}>
+                                <Icon icon="no-audio" />
+                                Mute audio
+                            </GenericMenuButtonItem>
+                        )}
+                        {hasScreenShareAudioTrack && (
+                            <GenericMenuButtonItem onClick={muteScreenShareAudio}>
+                                <Icon icon="no-audio" />
+                                Mute screen share audio
+                            </GenericMenuButtonItem>
+                        )}
+
+                        <GenericMenuButtonItem onClick={grantPermission(OwnCapability.SEND_AUDIO)}>
+                            Allow audio
+                        </GenericMenuButtonItem>
+                        <GenericMenuButtonItem onClick={grantPermission(OwnCapability.SEND_VIDEO)}>
+                            Allow video
+                        </GenericMenuButtonItem>
+                        <GenericMenuButtonItem onClick={grantPermission(OwnCapability.SCREENSHARE)}>
+                            Allow screen sharing
+                        </GenericMenuButtonItem>
+
+                        <GenericMenuButtonItem onClick={revokePermission(OwnCapability.SEND_AUDIO)}>
+                            Disable audio
+                        </GenericMenuButtonItem>
+                        <GenericMenuButtonItem onClick={revokePermission(OwnCapability.SEND_VIDEO)}>
+                            Disable video
+                        </GenericMenuButtonItem>
+                        <GenericMenuButtonItem onClick={revokePermission(OwnCapability.SCREENSHARE)}>
+                            Disable screen sharing
+                        </GenericMenuButtonItem>
+                    </>
+                )}
+
+                {participantViewElement && typeof participantViewElement.requestFullscreen !== "undefined" && (
+                    <GenericMenuButtonItem onClick={toggleFullscreenMode}>
+                        {fullscreenModeOn ? "Leave fullscreen" : "Enter fullscreen"}
+                    </GenericMenuButtonItem>
+                )}
+
+                {videoElement && document.pictureInPictureEnabled && (
+                    <GenericMenuButtonItem onClick={togglePictureInPicture}>
+                        {isPiP ? "Leave picture-in-picture" : "Enter picture-in-picture"}
+                    </GenericMenuButtonItem>
+                )}
+            </GenericMenu>
+        );
+    };
+
     const CustomParticipantOverlay = (props: React.ComponentProps<typeof DefaultParticipantViewUI>) => {
         return (
             <div className="h-full w-full">
-                <DefaultParticipantViewUI {...props} />
+                <DefaultParticipantViewUI
+                    {...props}
+                    ParticipantActionsContextMenu={CustomParticipantActionsContextMenu}
+                />
             </div>
         );
     };
@@ -118,8 +380,8 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
                         <button
                             onClick={() => setIsChatOpen((prev) => !prev)}
                             className={`flex items-center gap-2 transition px-3 py-1.5 rounded-full text-sm ${isChatOpen
-                                    ? "bg-blue-600 hover:bg-blue-700"
-                                    : "bg-white/10 hover:bg-white/20"
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "bg-white/10 hover:bg-white/20"
                                 }`}
                         >
                             <MessageSquare className="size-4" />
