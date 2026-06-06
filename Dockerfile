@@ -25,6 +25,11 @@ ENV NEXT_PUBLIC_POLAR_ORGANIZATION_ID=$NEXT_PUBLIC_POLAR_ORGANIZATION_ID
 # Suppress telemetry during the build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Supply dummy environment variables so Drizzle/Better-Auth initialize successfully during static analysis
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV BETTER_AUTH_SECRET="dummy_secret_must_be_32_characters_long_minimum"
+ENV BETTER_AUTH_URL="http://localhost:3000"
+
 RUN npm run build
 
 # 3. Production image, copy all the files and run next
