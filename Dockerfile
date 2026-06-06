@@ -30,6 +30,9 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 ENV BETTER_AUTH_SECRET="dummy_secret_must_be_32_characters_long_minimum"
 ENV BETTER_AUTH_URL="http://localhost:3000"
 ENV OPENAI_API_KEY="sk-dummy-key-for-build-time-only"
+ENV STREAM_VIDEO_SECRET_KEY="dummy_stream_video_secret_key_for_build"
+ENV STREAM_CHAT_SECRET_KEY="dummy_stream_chat_secret_key_for_build"
+ENV POLAR_ACCESS_TOKEN="dummy_polar_access_token_for_build"
 
 RUN npm run build
 
