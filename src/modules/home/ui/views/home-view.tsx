@@ -269,7 +269,7 @@ export const HomeView = () => {
           >
             <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:scale-105 transition-transform">
               <div className="text-3xl font-bold text-emerald-400 mb-2">
-                <AnimatedNumber value={statsInView ? 50000 : 0} suffix="+" duration={1.2} delay={0} />
+                <AnimatedNumber value={statsInView ? 80000 : 0} suffix="+" duration={1.2} delay={0} />
               </div>
               <div className="text-gray-300">Meetings Enhanced</div>
             </div>
