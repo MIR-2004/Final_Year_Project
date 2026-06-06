@@ -81,36 +81,36 @@ Make sure you have the following installed:
 Create a `.env` file in the root directory and add the following keys:
 
 ```env
-# Database
-DATABASE_URL=postgresql://...
+#Database
+DATABASE_URL="postgresql://your_db_user:your_db_password@your_db_host/your_db_name?sslmode=require"
 
-# Redis
-REDIS_URL=redis://127.0.0.1:6379
+#Authentication
+BETTER_AUTH_SECRET="your_better_auth_secret"
+BETTER_AUTH_URL="http://localhost:3000"
 
-# Better Auth
-BETTER_AUTH_SECRET=your_better_auth_secret
-BETTER_AUTH_URL=http://localhost:3000
+GITHUB_CLIENT_ID="your_github_client_id"
+GITHUB_CLIENT_SECRET="your_github_client_secret"
 
-# Auth Providers
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CLIENT_ID="your_google_client_id"
+GOOGLE_CLIENT_SECRET="your_google_client_secret"
 
-# Stream.io (Video + Chat)
-NEXT_PUBLIC_STREAM_API_KEY=your_stream_api_key
-STREAM_API_SECRET=your_stream_api_secret
+#OpenAI Key 
+OPENAI_API_KEY="your_openai_api_key"
 
-# Polar (Billing)
-POLAR_ACCESS_TOKEN=polar_sdt_...   # Sandbox token for local testing
-NEXT_PUBLIC_POLAR_ORGANIZATION_ID=your_polar_org_id
+#GetStreamIO Keys
+NEXT_PUBLIC_STREAM_API_KEY="your_stream_api_key"
+STREAM_VIDEO_SECRET_KEY="your_stream_video_secret_key"
+STREAM_CHAT_SECRET_KEY="your_stream_chat_secret_key"
 
-# OpenAI (AI Summaries)
-OPENAI_API_KEY=your_openai_api_key
+#Subscription
+POLAR_ACCESS_TOKEN="your_polar_access_token"
 
-# Inngest
-INNGEST_EVENT_KEY=your_inngest_event_key
-INNGEST_SIGNING_KEY=your_inngest_signing_key
+NEXT_APP_URL="http://localhost:3000"
+INNGEST_DEV=1
+
+# Redis Cache & Email Services
+REDIS_URL="redis://localhost:6379"
+RESEND_API_KEY="your_resend_api_key"
 ```
 
 ### Steps to Run
