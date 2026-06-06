@@ -1,9 +1,13 @@
-name: CI/CD Pipeline to EC2
+name: CI/CD — Build on GitHub, Deploy to EC2 via ECR
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
 
 jobs:
   lint-and-test:
@@ -15,8 +19,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-cache: npm
           node-version: 20
+          cache: npm
 
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
@@ -24,8 +28,43 @@ jobs:
       - name: Run Linter
         run: npm run lint
 
-  deploy:
+  build-and-push:
     needs: lint-and-test
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_STREAM_API_KEY="${{ secrets.NEXT_PUBLIC_STREAM_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_POLAR_ORGANIZATION_ID="${{ secrets.NEXT_PUBLIC_POLAR_ORGANIZATION_ID }}" \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2 via SSH
@@ -34,9 +73,24 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_REGION,ECR_REPOSITORY
           script: |
+            # 1. Authenticate EC2 Docker to ECR
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+              docker login --username AWS --password-stdin \
+              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+            # 2. Pull the latest pre-built image from ECR
+            export ECR_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest"
+            docker pull $ECR_IMAGE
+
+            # 3. Stop and remove old containers
             cd ~/Meet-AI
             git pull origin main
-            docker compose down
-            docker compose up -d --build
+            docker compose -f docker-compose.prod.yml down
+
+            # 4. Start the new containers using the ECR image
+            ECR_IMAGE=$ECR_IMAGE docker compose -f docker-compose.prod.yml up -d
+
+            # 5. Clean up old dangling images to preserve disk space
             docker image prune -f

@@ -1,0 +1,27 @@
+services:
+  web:
+    # Use the pre-built image from AWS ECR — no building on EC2
+    image: ${ECR_IMAGE}
+    container_name: meet_ai_web
+    ports:
+      - "3000:3000"
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: meet_ai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  redis_data:
