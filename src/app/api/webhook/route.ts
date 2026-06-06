@@ -11,7 +11,10 @@ import { generateAvatarUri } from "@/lib/avatar";
 import { streamChat } from "@/lib/stream-chat";
 import { SYSTEM_AGENT_ID, SYSTEM_AGENT_NAME, SYSTEM_AGENT_INSTRUCTIONS } from "@/constants";
 
+export const dynamic = "force-dynamic";
+
 const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY!});
+
 
 function verifySignatureWthSDK(body: string, signature: string): boolean {
     return streamVideo.verifyWebhook(body, signature);
