@@ -120,6 +120,7 @@ export async function POST(req:NextRequest) {
             }
 
             await inngest.send({
+                id: `meetings/processing-${updateMeeting.id}`,
                 name: "meetings/processing",
                 data: {
                     meetingId: updateMeeting.id,
