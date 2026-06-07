@@ -33,7 +33,7 @@ export const ChatHistory = ({ meetingId, userId, userName, userImage }: Props) =
         const loadMessages = async () => {
             try {
                 setLoading(true);
-                const token = await generateChatToken();
+                const token = await generateChatToken({ meetingId });
 
                 chatClient = StreamChat.getInstance(
                     process.env.NEXT_PUBLIC_STREAM_API_KEY!,

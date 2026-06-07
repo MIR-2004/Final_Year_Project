@@ -76,7 +76,7 @@ export const CallConnect = ({ meetingId, meetingName, userId, userName, userImag
 
     useEffect(() => {
         const connectChat = async () => {
-            const token = await generateChatToken();
+            const token = await generateChatToken({ meetingId });
 
             const _chatClient = StreamChat.getInstance(
                 process.env.NEXT_PUBLIC_STREAM_API_KEY!,

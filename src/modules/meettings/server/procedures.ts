@@ -14,16 +14,32 @@ import { streamChat } from "@/lib/stream-chat";
 import OpenAI from "openai";
 
 export const meetingssRouter = createTRPCRouter({
-    generateChatToken: protectedProcedure.mutation(async ({ ctx }) => {
-        const token = streamChat.createToken(ctx.auth.user.id);
-        await streamChat.upsertUsers([
-            {
-                id: ctx.auth.user.id,
-                role: "admin",
-            }
-        ]);
-        return token;
-    }),
+    generateChatToken: protectedProcedure
+        .input(z.object({ meetingId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const token = streamChat.createToken(ctx.auth.user.id);
+
+            await streamChat.upsertUsers([
+                {
+                    id: ctx.auth.user.id,
+                    name: ctx.auth.user.name,
+                    role: "admin",
+                    image: ctx.auth.user.image ?? generateAvatarUri({ seed: ctx.auth.user.name, variant: "initials" }),
+                }
+            ]);
+
+            // Ensure the channel exists and this user is a member so
+            // Stream Chat grants them the ReadChannel permission.
+            const channelId = `meeting-${input.meetingId}`;
+            const channel = streamChat.channel("messaging", channelId, {
+                created_by_id: ctx.auth.user.id,
+                members: [ctx.auth.user.id],
+            });
+            await channel.create();
+            await channel.addMembers([ctx.auth.user.id]);
+
+            return token;
+        }),
 
 
 

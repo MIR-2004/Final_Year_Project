@@ -37,8 +37,8 @@ export const ChatUI = ({
 
     const [channel, setChannel] = useState<StreamChannel>();
     const client = useCreateChatClient({
-        apiKey: process.env.Next_PUBLIC_STREAM_CHAT_API_KEY!,
-        tokenOrProvider: generateChatToken,
+        apiKey: process.env.NEXT_PUBLIC_STREAM_API_KEY!,
+        tokenOrProvider: () => generateChatToken({ meetingId }),
         userData: {
             id: userId,
             name: userName,
@@ -49,7 +49,7 @@ export const ChatUI = ({
     useEffect(() => {
         if(!client) return;
 
-        const channel = client.channel("messaging", meetingId, {
+        const channel = client.channel("messaging", `meeting-${meetingId}`, {
             members: [userId],
         });
 
