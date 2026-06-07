@@ -8,19 +8,20 @@ export const polarClient = new Polar({
 export async function getSafeCustomerState(externalId: string) {
     try {
         return await polarClient.customers.getStateExternal({ externalId });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { name?: string; statusCode?: number; message?: string; body$?: string };
         const isNotFound = 
-            error?.name === "ResourceNotFound" || 
-            error?.statusCode === 404 || 
-            error?.message?.includes("Not found") || 
-            error?.body$?.includes("ResourceNotFound");
+            err?.name === "ResourceNotFound" || 
+            err?.statusCode === 404 || 
+            err?.message?.includes("Not found") || 
+            err?.body$?.includes("ResourceNotFound");
         
         if (isNotFound) {
             return {
                 activeSubscriptions: [],
                 grantedBenefits: [],
                 activeMeters: [],
-            } as any;
+            } as unknown as Awaited<ReturnType<typeof polarClient.customers.getStateExternal>>;
         }
         throw error;
     }
