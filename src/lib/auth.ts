@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { polar, checkout, portal } from "@polar-sh/better-auth";
+import { polar, checkout, portal, webhooks } from "@polar-sh/better-auth";
 import { db } from "@/db";
 import * as schema from "@/db/schema"
 import { polarClient } from "./polar";
@@ -15,7 +15,10 @@ export const auth = betterAuth({
                     authenticatedUsersOnly: true,
                     successUrl: "/upgrade",
                 }),
-                portal()
+                portal(),
+                webhooks({
+                    secret: process.env.POLAR_WEBHOOK_SECRET as string,
+                })
             ],
         }),
     ],
