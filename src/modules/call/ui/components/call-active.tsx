@@ -26,7 +26,6 @@ import {
 import { LayoutGrid, User, Copy, Check, MessageSquare } from "lucide-react";
 import { StreamChat } from "stream-chat";
 import { CallChat } from "./call-chat";
-import { OpenAIChatbox } from "./openai-chatbox";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -434,9 +433,6 @@ export const CallActive = ({ onLeave, meetingName, meetingId, chatClient }: Prop
                     onClose={() => setIsChatOpen(false)}
                 />
             )}
-
-            {/* OpenAI Chatbox */}
-            <OpenAIChatbox />
         </div>
     );
 };
