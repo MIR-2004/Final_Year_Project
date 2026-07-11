@@ -18,5 +18,4 @@ const page = async() => {
     <SignUpView/>
   )
 }
-
 export default page;
