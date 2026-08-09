@@ -1,7 +1,5 @@
-import OpenAI from "openai";
-import {and, eq} from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
-import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { CallEndedEvent, CallTranscriptionReadyEvent, CallSessionParticipantLeftEvent, CallRecordingReadyEvent, CallSessionStartedEvent } from "@stream-io/node-sdk";
 import { db } from "@/db";
 import { meetings, meetingParticipants } from "@/db/schema";
@@ -10,77 +8,94 @@ import { inngest } from "@/inngest/client";
 import { generateAvatarUri } from "@/lib/avatar";
 import { streamChat } from "@/lib/stream-chat";
 import { SYSTEM_AGENT_ID, SYSTEM_AGENT_NAME, SYSTEM_AGENT_INSTRUCTIONS } from "@/constants";
+import { gemini } from "@/lib/gemini";
+import { gunzipSync } from "zlib";
 
 export const dynamic = "force-dynamic";
 
-const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY!});
 
-
-function verifySignatureWthSDK(body: string, signature: string): boolean {
+function verifySignatureWthSDK(body: string | Buffer, signature: string): boolean {
     return streamVideo.verifyWebhook(body, signature);
 }
 
-export async function POST(req:NextRequest) {
+export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-signature");
     const apiKey = req.headers.get("x-api-key");
+    const contentEncoding = req.headers.get("content-encoding");
 
-    if(!signature || !apiKey){
+    if (!signature || !apiKey) {
         return NextResponse.json(
-            {error: "Missing signature or API key"},
-            {status: 400}
+            { error: "Missing signature or API key" },
+            { status: 400 }
         )
     }
 
-    const body = await req.text();
+    // Read raw bytes from the request
+    const rawBuffer = Buffer.from(await req.arrayBuffer());
 
-    if(!verifySignatureWthSDK(body, signature)){
-        return NextResponse.json({error: "Invalid Signature"}, {status: 401})
+    // Stream signs the UNCOMPRESSED JSON body, but may send it gzip-compressed.
+    // Next.js does not auto-decompress req.arrayBuffer(), so we must decompress
+    // before signature verification.
+    let bodyText: string;
+    try {
+        if (contentEncoding === "gzip") {
+            bodyText = gunzipSync(rawBuffer).toString("utf-8");
+        } else {
+            bodyText = rawBuffer.toString("utf-8");
+        }
+    } catch {
+        return NextResponse.json({ error: "Failed to decompress body" }, { status: 400 })
+    }
+
+    // Verify signature against the decompressed body text
+    if (!verifySignatureWthSDK(bodyText, signature)) {
+        return NextResponse.json({ error: "Invalid Signature" }, { status: 401 })
     }
 
     let payload: unknown;
-    try{
-        payload = JSON.parse(body) as Record<string, unknown>;
-    }catch{
-        return NextResponse.json({error: "Invalid JSON"}, { status: 400})
+    try {
+        payload = JSON.parse(bodyText) as Record<string, unknown>;
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
     }
 
     const eventType = (payload as Record<string, unknown>)?.type;
 
-    if(eventType === "call.session_started"){
+    if (eventType === "call.session_started") {
         const event = payload as CallSessionStartedEvent;
         const meetingId = event.call.custom?.meetingId;
 
-        if(!meetingId){
-            return NextResponse.json({error: "Missing meetingId"}, {status: 400});
+        if (!meetingId) {
+            return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
         }
 
         const [existingMeeting] = await db.select()
-        .from(meetings)
-        .where(eq(meetings.id, meetingId))
+            .from(meetings)
+            .where(eq(meetings.id, meetingId))
 
-        if(!existingMeeting){
-            return NextResponse.json({error: "Meeting not found"}, {status: 404})
+        if (!existingMeeting) {
+            return NextResponse.json({ error: "Meeting not found" }, { status: 404 })
         }
 
         if (existingMeeting.status !== "active") {
-            await db.update(meetings).set({status: "active", startedAt: new Date()}).where(eq(meetings.id, existingMeeting.id))
+            await db.update(meetings).set({ status: "active", startedAt: new Date() }).where(eq(meetings.id, existingMeeting.id))
         }
 
         // We no longer connect a voice agent here. The AI is a background entity
         // that only processes transcripts and chat messages asynchronously.
         return NextResponse.json({ status: "Ok" });
-    }else if( eventType === "call.session_participant_left"){
+    } else if (eventType === "call.session_participant_left") {
         const event = payload as CallSessionParticipantLeftEvent;
         const meetingId = event.call_cid.split(":")[1];
 
-        if(!meetingId){
-            return NextResponse.json({error: "Missing meetingId"}, {status:400});
+        if (!meetingId) {
+            return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
         }
 
         try {
             const call = streamVideo.video.call("default", meetingId);
             const callResponse = await call.get();
-            
+
             // Only end the call if there are no more human participants
             const participants = callResponse?.call?.session?.participants || [];
             const humanParticipants = participants.filter(
@@ -94,16 +109,16 @@ export async function POST(req:NextRequest) {
         } catch (error) {
             console.error("Error handling participant left:", error);
         }
-    } else if(eventType === "call.session_ended"){
+    } else if (eventType === "call.session_ended") {
         const event = payload as CallEndedEvent;
         const meetingId = event.call.custom?.meetingId;
 
-        if(!meetingId){
-            return NextResponse.json({error: "Missing meetingId"}, {status: 400})
+        if (!meetingId) {
+            return NextResponse.json({ error: "Missing meetingId" }, { status: 400 })
         }
 
-        await db.update(meetings).set({ status: "processing", endedAt: new Date()}).where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")))
-    }else if(eventType === "call.transcription_ready"){
+        await db.update(meetings).set({ status: "processing", endedAt: new Date() }).where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")))
+    } else if (eventType === "call.transcription_ready") {
         const event = payload as CallTranscriptionReadyEvent;
         const meetingId = event.call_cid.split(":")[1];
 
@@ -115,23 +130,23 @@ export async function POST(req:NextRequest) {
             .returning();
 
 
-            if(!updateMeeting){
-                return NextResponse.json({error: "Meeting not found"}, {status: 404})
-            }
+        if (!updateMeeting) {
+            return NextResponse.json({ error: "Meeting not found" }, { status: 404 })
+        }
 
-            await inngest.send({
-                id: `meetings/processing-${updateMeeting.id}`,
-                name: "meetings/processing",
-                data: {
-                    meetingId: updateMeeting.id,
-                    transcriptUrl: updateMeeting.transcriptUrl
-                }
-            })
-    }else if(eventType === "call.recording_ready"){
-        const event  = payload as CallRecordingReadyEvent;
+        await inngest.send({
+            id: `meetings/processing-${updateMeeting.id}`,
+            name: "meetings/processing",
+            data: {
+                meetingId: updateMeeting.id,
+                transcriptUrl: updateMeeting.transcriptUrl
+            }
+        })
+    } else if (eventType === "call.recording_ready") {
+        const event = payload as CallRecordingReadyEvent;
         const meetingId = event.call_cid.split(":")[1];
 
-        await db.update(meetings).set({recordingUrl: event.call_recording.url}).where(eq(meetings.id, meetingId))
+        await db.update(meetings).set({ recordingUrl: event.call_recording.url }).where(eq(meetings.id, meetingId))
     } else if (eventType === "call.kicked_user") {
         const event = payload as { call_cid: string; user: { id: string } };
         const meetingId = event.call_cid.split(":")[1];
@@ -164,7 +179,7 @@ export async function POST(req:NextRequest) {
         const channelId = event.channel_id;
         const text = event.message?.text;
 
-        if(!userId || !channelId || !text){
+        if (!userId || !channelId || !text) {
             return NextResponse.json(
                 { error: "Missing required fields" },
                 { status: 400 }
@@ -173,18 +188,18 @@ export async function POST(req:NextRequest) {
 
         // Only process messages from completed meetings
         const [existingMeeting] = await db
-        .select()
-        .from(meetings)
-        .where(and(eq(meetings.id, channelId), eq(meetings.status, "completed")));
+            .select()
+            .from(meetings)
+            .where(and(eq(meetings.id, channelId), eq(meetings.status, "completed")));
 
-        if(!existingMeeting){
-            return NextResponse.json({ error: "Meeting not found" }, { status: 404});
+        if (!existingMeeting) {
+            return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
         }
 
         // Don't respond to the system agent's own messages
-        if(userId !== SYSTEM_AGENT_ID){
+        if (userId !== SYSTEM_AGENT_ID) {
 
-        const instructions = `
+            const instructions = `
       You are an AI assistant helping the user revisit a recently completed meeting.
       Below is a summary of the meeting, generated from the transcript:
       
@@ -204,58 +219,62 @@ export async function POST(req:NextRequest) {
       Be concise, helpful, and focus on providing accurate information from the meeting and the ongoing conversation.
       `;
 
-      const channel = streamChat.channel("messaging", channelId);
-      await channel.watch();
+            const channel = streamChat.channel("messaging", channelId);
+            await channel.watch();
 
-      const previousMessages = channel.state.messages
-      .slice(-5)
-      .filter((msg) => msg.text && msg.text.trim() !== "")
-      .map<ChatCompletionMessageParam>((message) => ({
-        role: message.user?.id === SYSTEM_AGENT_ID ? "assistant": "user",
-        content: message.text || "",
-      }));
+            const previousMessages = channel.state.messages
+                .slice(-5)
+                .filter((msg) => msg.text && msg.text.trim() !== "")
+                .map((message) => ({
+                    role: message.user?.id === SYSTEM_AGENT_ID ? "assistant" as const : "user" as const,
+                    content: message.text || "",
+                }));
 
-      const GPTResponse = await openaiClient.chat.completions.create({
-        messages: [
-            {role: "system", content: instructions },
-            ...previousMessages,
-            { role: "user", content: text },
-        ],
-        model: "gpt-4o"
-      });
+            const geminiResponse = await gemini.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: [
+                    ...previousMessages.map((msg) => ({
+                        role: msg.role === "assistant" ? "model" : "user",
+                        parts: [{ text: msg.content }],
+                    })),
+                    { role: "user", parts: [{ text: text }] }
+                ],
+                config: {
+                    systemInstruction: instructions,
+                }
+            });
 
-      const GPTResponseText = GPTResponse.choices[0].message.content;
+            const geminiResponseText = geminiResponse.text;
 
-      if(!GPTResponseText) {
-        return NextResponse.json(
-            { error: "No response from GPT"},
-            { status: 400}
-        );
-      }
+            if (!geminiResponseText) {
+                return NextResponse.json(
+                    { error: "No response from Gemini" },
+                    { status: 400 }
+                );
+            }
 
-      const avatarUrl = generateAvatarUri({
-        seed: SYSTEM_AGENT_NAME,
-        variant: "botttsNeutral",
-      });
+            const avatarUrl = generateAvatarUri({
+                seed: SYSTEM_AGENT_NAME,
+                variant: "botttsNeutral",
+            });
 
-      streamChat.upsertUser({
-        id: SYSTEM_AGENT_ID,
-        name: SYSTEM_AGENT_NAME,
-        image: avatarUrl,
-      });
+            streamChat.upsertUser({
+                id: SYSTEM_AGENT_ID,
+                name: SYSTEM_AGENT_NAME,
+                image: avatarUrl,
+            });
 
-        channel.sendMessage({
-            text: GPTResponseText,
-            user: {
-               id: SYSTEM_AGENT_ID,
-               name: SYSTEM_AGENT_NAME,
-               image: avatarUrl,
-            },
-      });
-      }
+            channel.sendMessage({
+                text: geminiResponseText,
+                user: {
+                    id: SYSTEM_AGENT_ID,
+                    name: SYSTEM_AGENT_NAME,
+                    image: avatarUrl,
+                },
+            });
+        }
     }
 
-    return NextResponse.json({status: "Ok"});
+    return NextResponse.json({ status: "Ok" });
 
 }
-
