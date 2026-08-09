@@ -1,31 +1,29 @@
-import { openai } from "@/lib/openai";
+import { gemini } from "@/lib/gemini";
 import { SYSTEM_AGENT_INSTRUCTIONS } from "@/constants";
-import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 
 export const aiService = {
   async generateSummary(transcriptWithSpeakers: unknown[]): Promise<string> {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: SYSTEM_AGENT_INSTRUCTIONS,
-        },
+    const response = await gemini.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
         {
           role: "user",
-          content: "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers),
+          parts: [{ text: "Summarize the following transcript: " + JSON.stringify(transcriptWithSpeakers) }],
         },
       ],
-      temperature: 0.5,
-      max_tokens: 2000,
+      config: {
+        systemInstruction: SYSTEM_AGENT_INSTRUCTIONS,
+        temperature: 0.5,
+        maxOutputTokens: 2000,
+      },
     });
 
-    return completion.choices[0]?.message?.content ?? "No summary generated.";
+    return response.text ?? "No summary generated.";
   },
 
   async answerMeetingQuestion(
     summary: string,
-    previousMessages: ChatCompletionMessageParam[],
+    previousMessages: { role: "user" | "assistant"; content: string }[],
     question: string
   ): Promise<string> {
     const instructions = `
@@ -48,15 +46,20 @@ If the summary does not contain enough information to answer a question, politel
 Be concise, helpful, and focus on providing accurate information from the meeting and the ongoing conversation.
 `.trim();
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: instructions },
-        ...previousMessages,
-        { role: "user", content: question },
+    const response = await gemini.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        ...previousMessages.map((msg) => ({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }],
+        })),
+        { role: "user", parts: [{ text: question }] },
       ],
+      config: {
+        systemInstruction: instructions,
+      },
     });
 
-    return completion.choices[0]?.message?.content ?? "No response could be generated.";
+    return response.text ?? "No response could be generated.";
   }
 };

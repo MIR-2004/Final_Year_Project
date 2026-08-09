@@ -11,7 +11,7 @@ import { MeetingStatus, StreamTranscriptItem } from "../types";
 import { streamVideo } from "@/lib/stream-video";
 import { generateAvatarUri } from "@/lib/avatar";
 import { streamChat } from "@/lib/stream-chat";
-import OpenAI from "openai";
+
 
 export const meetingssRouter = createTRPCRouter({
     generateChatToken: protectedProcedure
@@ -411,46 +411,7 @@ export const meetingssRouter = createTRPCRouter({
             };
         }),
 
-    chatWithOpenAI: protectedProcedure
-        .input(z.object({
-            messages: z.array(z.object({
-                role: z.enum(["user", "assistant"]),
-                content: z.string(),
-            })),
-        }))
-        .mutation(async ({ input }) => {
-            const openai = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY!,
-            });
 
-            try {
-                const completion = await openai.chat.completions.create({
-                    model: "gpt-4o-mini",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You are a helpful assistant during a video meeting. Provide concise and helpful responses to user questions."
-                        },
-                        ...input.messages.map(msg => ({
-                            role: msg.role,
-                            content: msg.content,
-                        })),
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 500,
-                });
-
-                return {
-                    message: completion.choices[0]?.message?.content || "Sorry, I couldn't generate a response.",
-                };
-            } catch (error) {
-                console.error("OpenAI API error:", error);
-                throw new TRPCError({
-                    code: "INTERNAL_SERVER_ERROR",
-                    message: "Failed to get response from OpenAI",
-                });
-            }
-        }),
 
     getCoHosts: protectedProcedure
         .input(z.object({ meetingId: z.string() }))

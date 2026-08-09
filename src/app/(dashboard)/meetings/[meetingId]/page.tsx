@@ -38,7 +38,7 @@ const Page = async ({ params}: Props) => {
             </ErrorBoundary>
           </Suspense>
         </HydrationBoundary>
-);
+    );
 }
 
 export default Page;

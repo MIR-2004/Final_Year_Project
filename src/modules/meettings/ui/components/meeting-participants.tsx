@@ -51,7 +51,16 @@ export const MeetingParticipants = ({ meetingId, hostId, currentUserId, coHostId
         ) : (
           <ScrollArea className="max-h-72 pr-2">
             <div className="flex flex-col gap-y-3">
-              {participants.map((participant) => {
+              {Array.from(
+                participants.reduce((map, p) => {
+                  const existing = map.get(p.id);
+                  if (!existing || new Date(p.joinedAt) > new Date(existing.joinedAt)) {
+                    map.set(p.id, p);
+                  }
+                  return map;
+                }, new Map<string, (typeof participants)[number]>())
+                .values()
+              ).map((participant) => {
                 const isCurrentUser = currentUserId && participant.id === currentUserId;
                 const isParticipantHost = hostId && participant.id === hostId;
                 const isParticipantCoHost = coHostIds && coHostIds.includes(participant.id);
