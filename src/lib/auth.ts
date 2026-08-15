@@ -20,6 +20,7 @@ export const auth = betterAuth({
                     secret: process.env.POLAR_WEBHOOK_SECRET as string,
                 })
             ],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any,
     ],
     socialProviders: {

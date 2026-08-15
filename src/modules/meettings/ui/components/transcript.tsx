@@ -9,8 +9,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { generateAvatarUri } from "@/lib/avatar";
 
-import { LoadingState } from "@/components/loading-state";
-
 interface Props {
   meetingId: string;
 }

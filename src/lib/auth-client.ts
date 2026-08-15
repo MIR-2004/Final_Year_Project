@@ -10,5 +10,6 @@ export interface PolarClientMethods {
 }
 
 export const authClient = createAuthClient({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: [polarClient() as any]
 }) as ReturnType<typeof createAuthClient> & PolarClientMethods;

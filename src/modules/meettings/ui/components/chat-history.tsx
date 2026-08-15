@@ -5,7 +5,6 @@ import { useMutation } from "@tanstack/react-query";
 import { StreamChat, MessageResponse } from "stream-chat";
 
 import { useTRPC } from "@/trpc/client";
-import { LoadingState } from "@/components/loading-state";
 import { GeneratedAvatar } from "@/components/generated-avatar";
 import { format } from "date-fns";
 import { MessageSquareIcon } from "lucide-react";
@@ -112,6 +111,7 @@ export const ChatHistory = ({ meetingId, userId, userName, userImage }: Props) =
                     <div key={msg.id} className="px-4 py-3 flex gap-3 hover:bg-muted/20 transition-colors">
                         <div className="shrink-0 pt-0.5">
                             {msg.user?.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                     src={msg.user.image}
                                     alt={msg.user.name || "User"}

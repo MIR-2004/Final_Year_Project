@@ -5,7 +5,6 @@ import {
   MessageSquare,
   Video,
   Brain,
-  Users,
   Zap,
   ArrowRight,
   Play,
@@ -14,15 +13,12 @@ import {
   Sparkles,
   Shield,
   Lock,
-  Activity,
   Bot,
   ChevronDown,
   Check,
   Globe,
   FileText,
-  LayoutDashboard,
   BarChart3,
-  HelpCircle,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -784,7 +780,11 @@ export const HomeView = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div
+            className={`grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto transition-all duration-1000 ${
+              pricingInView ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+            }`}
+          >
             {/* Free / Basic Plan */}
             <div className="bg-slate-900/80 rounded-3xl p-8 border border-white/10 hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between">
               <div>

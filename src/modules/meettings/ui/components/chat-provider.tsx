@@ -1,7 +1,6 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
-import { LoadingState } from "@/components/loading-state";
 import { ChatUI } from "./chat-ui";
 
 interface Props {
