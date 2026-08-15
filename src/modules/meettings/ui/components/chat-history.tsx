@@ -72,10 +72,10 @@ export const ChatHistory = ({ meetingId, userId, userName, userImage }: Props) =
 
     if (loading) {
         return (
-            <LoadingState
-                title="Loading Chat History"
-                description="Fetching meeting chat messages..."
-            />
+            <div className="bg-white rounded-lg border p-6 flex flex-col gap-y-4 animate-pulse">
+                <div className="h-6 w-48 bg-gray-200 rounded" />
+                <div className="h-20 bg-gray-100 rounded" />
+            </div>
         );
     }
 

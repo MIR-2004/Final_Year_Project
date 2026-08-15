@@ -14,10 +14,10 @@ export const ChatProvider = ({ meetingId, meetingName }: Props) => {
 
    if(isPending || !data?.user) {
     return (
-        <LoadingState
-        title="Loading..."
-        description="Please wait while we load the chat"
-        />
+        <div className="bg-white rounded-lg border p-6 flex flex-col gap-y-4 animate-pulse">
+            <div className="h-6 w-48 bg-gray-200 rounded" />
+            <div className="h-20 bg-gray-100 rounded" />
+        </div>
     );
    }
 
