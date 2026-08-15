@@ -20,7 +20,7 @@ export const auth = betterAuth({
                     secret: process.env.POLAR_WEBHOOK_SECRET as string,
                 })
             ],
-        }),
+        }) as any,
     ],
     socialProviders: {
         github: { 
