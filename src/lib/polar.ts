@@ -9,20 +9,11 @@ export async function getSafeCustomerState(externalId: string) {
     try {
         return await polarClient.customers.getStateExternal({ externalId });
     } catch (error: unknown) {
-        const err = error as { name?: string; statusCode?: number; message?: string; body$?: string };
-        const isNotFound = 
-            err?.name === "ResourceNotFound" || 
-            err?.statusCode === 404 || 
-            err?.message?.includes("Not found") || 
-            err?.body$?.includes("ResourceNotFound");
-        
-        if (isNotFound) {
-            return {
-                activeSubscriptions: [],
-                grantedBenefits: [],
-                activeMeters: [],
-            } as unknown as Awaited<ReturnType<typeof polarClient.customers.getStateExternal>>;
-        }
-        throw error;
+        console.error("[Polar API Error] getSafeCustomerState failed:", error);
+        return {
+            activeSubscriptions: [],
+            grantedBenefits: [],
+            activeMeters: [],
+        } as unknown as Awaited<ReturnType<typeof polarClient.customers.getStateExternal>>;
     }
 }
