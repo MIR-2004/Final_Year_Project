@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: "Meet-AI",
   description: "Your intelligent co-host for every stream",
   icons: {
-    icon: "/logo.svg", 
+    icon: "/logo.svg",
   }
 };
 
@@ -27,16 +27,16 @@ export default function RootLayout({
 
   return (
     <NuqsAdapter>
-    <TRPCReactProvider>
-    <html lang="en">
-      <body
-        className={`${inter.className} antialiased`}
-      >
-        <Toaster />
-        {children}
-      </body>
-    </html>
-    </TRPCReactProvider>
+      <TRPCReactProvider>
+        <html lang="en">
+          <body
+            className={`${inter.className} antialiased`}
+          >
+            <Toaster />
+            {children}
+          </body>
+        </html>
+      </TRPCReactProvider>
     </NuqsAdapter>
   );
 }
