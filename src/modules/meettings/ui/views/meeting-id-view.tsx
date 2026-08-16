@@ -15,6 +15,9 @@ import { ProcessingState } from "../components/processing-state";
 import { CompletedState } from "../components/completed-state";
 import { UpcomingState } from "../components/upcoming-state";
 import { authClient } from "@/lib/auth-client";
+import { ResponsiveDialog } from "@/components/responsive-dialog";
+import { Loader2Icon } from "lucide-react";
+import { toast } from "sonner";
 
 interface Props {
     meetingId: string;
@@ -39,13 +42,20 @@ export const MeetingIdView = ({ meetingId }: Props) => {
 
     const removeMeeting = useMutation(
         trpc.meetings.remove.mutationOptions({
+            onMutate: () => {
+                toast.loading("Deleting meeting...", { id: "delete-meeting-toast" });
+            },
             onSuccess: async () => {
+                router.push("/meetings");
+                toast.success("Meeting deleted successfully", { id: "delete-meeting-toast" });
                 await queryClient.invalidateQueries(trpc.meetings.getMany.queryOptions({}));
                 await queryClient.invalidateQueries(
                     trpc.premium.getFreeUsage.queryOptions(),
                 );
-                router.push("/meetings");
             },
+            onError: (err: unknown) => {
+                toast.error((err as Error)?.message || "Failed to delete meeting", { id: "delete-meeting-toast" });
+            }
         }),
     );
 
@@ -67,6 +77,22 @@ export const MeetingIdView = ({ meetingId }: Props) => {
     return (
         <>
             <RemoveConfirmation isLoading={removeMeeting.isPending} />
+            <ResponsiveDialog
+                open={removeMeeting.isPending}
+                onOpenChange={() => {}}
+                title="Deleting Meeting"
+                description="Please wait while the meeting is being removed..."
+            >
+                <div className="flex flex-col items-center justify-center py-8 gap-y-4">
+                    <div className="size-12 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center">
+                        <Loader2Icon className="size-6 animate-spin text-rose-600" />
+                    </div>
+                    <div className="flex flex-col items-center gap-y-1 text-center">
+                        <p className="text-sm font-semibold text-gray-800">Deleting meeting data...</p>
+                        <p className="text-xs text-gray-500">This may take a few seconds.</p>
+                    </div>
+                </div>
+            </ResponsiveDialog>
             <UpdateMeetingDialog
                 open={UpdateMeetingDialogOpen}
                 onOpenChange={setUpdateMeetingDialogOpen}
