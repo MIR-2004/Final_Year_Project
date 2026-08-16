@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { eq, count } from "drizzle-orm";
-import { meetings } from "@/db/schema";
+import { meetings, user } from "@/db/schema";
 import { polarClient, getSafeCustomerState } from "@/lib/polar";
 import {
     createTRPCRouter,
@@ -49,18 +49,38 @@ export const premiumRouter = createTRPCRouter({
                 return null;
             }
 
+            const [userRecord] = await db
+                .select({ totalMeetingsCreated: user.totalMeetingsCreated })
+                .from(user)
+                .where(eq(user.id, ctx.auth.user.id));
+
             const [userMeetings] = await db
                 .select({
                     count: count(meetings.id),
                 })
                 .from(meetings)
-                .where(eq(meetings.userId, ctx.auth.user.id));
+            const activeCount = userMeetings?.count ?? 0;
+            let totalCount = userRecord?.totalMeetingsCreated ?? 0;
+
+            if (totalCount < activeCount) {
+                totalCount = activeCount;
+                await db
+                    .update(user)
+                    .set({ totalMeetingsCreated: activeCount })
+                    .where(eq(user.id, ctx.auth.user.id));
+            }
 
             return {
-                meetingCount: userMeetings?.count ?? 0,
+                meetingCount: totalCount,
             };
         } catch (error) {
             console.error("[Polar API Error] getFreeUsage failed:", error);
+
+            const [userRecord] = await db
+                .select({ totalMeetingsCreated: user.totalMeetingsCreated })
+                .from(user)
+                .where(eq(user.id, ctx.auth.user.id));
+
             const [userMeetings] = await db
                 .select({
                     count: count(meetings.id),
@@ -68,8 +88,19 @@ export const premiumRouter = createTRPCRouter({
                 .from(meetings)
                 .where(eq(meetings.userId, ctx.auth.user.id));
 
+            const activeCount = userMeetings?.count ?? 0;
+            let totalCount = userRecord?.totalMeetingsCreated ?? 0;
+
+            if (totalCount < activeCount) {
+                totalCount = activeCount;
+                await db
+                    .update(user)
+                    .set({ totalMeetingsCreated: activeCount })
+                    .where(eq(user.id, ctx.auth.user.id));
+            }
+
             return {
-                meetingCount: userMeetings?.count ?? 0,
+                meetingCount: totalCount,
             };
         }
     })

@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { auth } from '@/lib/auth';
 import { getSafeCustomerState } from '@/lib/polar';
 import { db } from '@/db';
-import { meetings } from '@/db/schema';
+import { meetings, user } from '@/db/schema';
 import { count, eq } from 'drizzle-orm';
 import { MAX_FREE_MEETINGS } from '@/modules/premium/constants';
 export const createTRPCContext = cache(async () => {
@@ -47,15 +47,30 @@ export const premiumProcedure = (entity: "meetings") =>
   protectedProcedure.use(async ({ ctx, next }) => {
     const customer = await getSafeCustomerState(ctx.auth.user.id);
 
+    const [userRecord] = await db
+      .select({ totalMeetingsCreated: user.totalMeetingsCreated })
+      .from(user)
+      .where(eq(user.id, ctx.auth.user.id));
+
     const [userMeetings] = await db
       .select({
         count: count(meetings.id),
       })
       .from(meetings)
-      .where(eq(meetings.userId, ctx.auth.user.id));
+    const activeCount = userMeetings?.count ?? 0;
+    let totalCount = userRecord?.totalMeetingsCreated ?? 0;
 
+    if (totalCount < activeCount) {
+      totalCount = activeCount;
+      await db
+        .update(user)
+        .set({ totalMeetingsCreated: activeCount })
+        .where(eq(user.id, ctx.auth.user.id));
+    }
+
+    const meetingCount = totalCount;
     const isPremium = customer.activeSubscriptions.length > 0;
-    const isFreeMeetingLimitReached = userMeetings.count >= MAX_FREE_MEETINGS;
+    const isFreeMeetingLimitReached = meetingCount >= MAX_FREE_MEETINGS;
 
     const shouldThrowMeetingError =
       entity === "meetings" && isFreeMeetingLimitReached && !isPremium;

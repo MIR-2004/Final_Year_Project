@@ -227,6 +227,13 @@ export const meetingssRouter = createTRPCRouter({
                 .values({ ...input, userId: ctx.auth.user.id })
                 .returning();
 
+            await db
+                .update(user)
+                .set({
+                    totalMeetingsCreated: sql`${user.totalMeetingsCreated} + 1`,
+                })
+                .where(eq(user.id, ctx.auth.user.id));
+
             const call = streamVideo.video.call("default", createdMeeting.id);
             await call.create({
                 data: {
