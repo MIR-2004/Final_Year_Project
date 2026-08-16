@@ -106,11 +106,20 @@ export const MeetingIdViewLoading = () => {
 };
 
 
-export const MeetingIdViewError = () => {
+interface MeetingIdViewErrorProps {
+    error?: Error;
+}
+
+export const MeetingIdViewError = ({ error }: MeetingIdViewErrorProps) => {
+    const isEnded = error?.message?.toLowerCase().includes("ended");
     return (
         <ErrorState
-            title="Meeting not found"
-            description="The meeting you are looking for does not exist or may have been deleted."
+            title={isEnded ? "Meeting has already ended" : "Meeting not found"}
+            description={
+                isEnded
+                    ? "You cannot view details for an ended meeting that you did not join."
+                    : "The meeting you are looking for does not exist or may have been deleted."
+            }
         />
     );
 };

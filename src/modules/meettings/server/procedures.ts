@@ -306,6 +306,22 @@ export const meetingssRouter = createTRPCRouter({
                 .from(meetingCoHosts)
                 .where(eq(meetingCoHosts.meetingId, input.id));
 
+            const isHost = existingMeeting.userId === ctx.auth.user.id;
+            const isCoHost = coHosts.some((ch) => ch.userId === ctx.auth.user.id);
+            const hasJoinedAtLeastOnce = !!participant;
+
+            if (
+                (existingMeeting.status === "completed" || existingMeeting.status === "cancelled") &&
+                !isHost &&
+                !isCoHost &&
+                !hasJoinedAtLeastOnce
+            ) {
+                throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: "Meeting has already ended",
+                });
+            }
+
             return {
                 ...existingMeeting,
                 coHostIds: coHosts.map((ch) => ch.userId),

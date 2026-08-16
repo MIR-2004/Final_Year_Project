@@ -5,7 +5,8 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { meetingParticipants } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { meetings, meetingParticipants } from "@/db/schema";
 
 interface Props {
     params: Promise<{ meetingId: string }>;
@@ -23,13 +24,24 @@ const page = async ({ params }: Props) => {
         redirect("/sign-in");
     }
 
-    try {
-        await db.insert(meetingParticipants).values({
-            meetingId: meetingId,
-            userId: session.user.id,
-        }).onConflictDoNothing();
-    } catch {
-        // Ignore foreign key error if meeting does not exist
+    const [existingMeeting] = await db
+        .select()
+        .from(meetings)
+        .where(eq(meetings.id, meetingId));
+
+    if (
+        existingMeeting &&
+        existingMeeting.status !== "completed" &&
+        existingMeeting.status !== "cancelled"
+    ) {
+        try {
+            await db.insert(meetingParticipants).values({
+                meetingId: meetingId,
+                userId: session.user.id,
+            }).onConflictDoNothing();
+        } catch {
+            // Ignore insert error
+        }
     }
 
     const queryClient = getQueryClient();

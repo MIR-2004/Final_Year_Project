@@ -46,9 +46,10 @@ export const JoinMeetingDialog = ({ open, onOpenChange }: JoinMeetingDialogProps
         onOpenChange(false);
         router.push(`/meetings/${idToJoin}`);
         setMeetingId("");
-      } catch {
-        toast.error("Meeting not found");
-        setError("Meeting not found. Please check the Meeting ID and try again.");
+      } catch (err: unknown) {
+        const msg = (err as Error)?.message || "Meeting not found";
+        toast.error(msg);
+        setError(msg);
       } finally {
         setIsLoading(false);
       }

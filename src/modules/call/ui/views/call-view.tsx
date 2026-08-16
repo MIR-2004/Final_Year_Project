@@ -42,9 +42,17 @@ export const CallView = ({ meetingId }: Props) => {
   }
 
   if (error) {
+    const isEnded = error.message?.toLowerCase().includes("ended");
     return (
       <div className="flex h-screen items-center justify-center">
-        <ErrorState title="Meeting not found" description="The meeting you are trying to join does not exist or has been removed." />
+        <ErrorState
+          title={isEnded ? "Meeting has already ended" : "Meeting not found"}
+          description={
+            isEnded
+              ? "You cannot join a meeting that has already ended."
+              : "The meeting you are trying to join does not exist or has been removed."
+          }
+        />
       </div>
     );
   }
