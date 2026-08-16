@@ -44,7 +44,7 @@ export const CallView = ({ meetingId }: Props) => {
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <ErrorState title="Error Loading Meeting" description="Something went wrong." />
+        <ErrorState title="Meeting not found" description="The meeting you are trying to join does not exist or has been removed." />
       </div>
     );
   }

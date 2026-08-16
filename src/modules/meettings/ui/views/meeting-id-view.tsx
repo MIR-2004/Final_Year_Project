@@ -109,8 +109,8 @@ export const MeetingIdViewLoading = () => {
 export const MeetingIdViewError = () => {
     return (
         <ErrorState
-            title="Error Loading Meetings"
-            description="Something went wrong"
+            title="Meeting not found"
+            description="The meeting you are looking for does not exist or may have been deleted."
         />
     );
 };

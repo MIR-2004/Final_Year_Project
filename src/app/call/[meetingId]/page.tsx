@@ -23,10 +23,14 @@ const page = async ({ params }: Props) => {
         redirect("/sign-in");
     }
 
-    await db.insert(meetingParticipants).values({
-        meetingId: meetingId,
-        userId: session.user.id,
-    }).onConflictDoNothing();
+    try {
+        await db.insert(meetingParticipants).values({
+            meetingId: meetingId,
+            userId: session.user.id,
+        }).onConflictDoNothing();
+    } catch {
+        // Ignore foreign key error if meeting does not exist
+    }
 
     const queryClient = getQueryClient();
 
