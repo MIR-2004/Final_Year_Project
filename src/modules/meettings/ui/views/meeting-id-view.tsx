@@ -80,6 +80,7 @@ export const MeetingIdView = ({ meetingId }: Props) => {
             <ResponsiveDialog
                 open={removeMeeting.isPending}
                 onOpenChange={() => {}}
+                showCloseButton={false}
                 title="Deleting Meeting"
                 description="Please wait while the meeting is being removed..."
             >

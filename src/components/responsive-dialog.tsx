@@ -26,6 +26,7 @@ interface ResponsiveDialogProps {
     children: React.ReactNode;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    showCloseButton?: boolean;
 }
 
 export const ResponsiveDialog = ({
@@ -34,6 +35,7 @@ export const ResponsiveDialog = ({
     children,
     open,
     onOpenChange,
+    showCloseButton = true,
 }: ResponsiveDialogProps) => {
     const isMobile = useIsMobile();
 
@@ -53,7 +55,7 @@ export const ResponsiveDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent showCloseButton={showCloseButton}>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>{description}</DialogDescription>
