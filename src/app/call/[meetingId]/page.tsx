@@ -21,7 +21,7 @@ const page = async ({ params }: Props) => {
     })
 
     if (!session) {
-        redirect("/sign-in");
+        redirect("/auth/sign-in");
     }
 
     const [existingMeeting] = await db

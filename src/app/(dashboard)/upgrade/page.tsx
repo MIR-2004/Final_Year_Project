@@ -18,7 +18,7 @@ const Page = async () => {
     })
 
     if(!session){
-        redirect("/sign-in")
+        redirect("/auth/sign-in");
     }
     const queryClient = getQueryClient();
     await Promise.all([

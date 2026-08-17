@@ -57,6 +57,7 @@ export const premiumProcedure = (entity: "meetings") =>
         count: count(meetings.id),
       })
       .from(meetings)
+      .where(eq(meetings.userId, ctx.auth.user.id));
     const activeCount = userMeetings?.count ?? 0;
     let totalCount = userRecord?.totalMeetingsCreated ?? 0;
 

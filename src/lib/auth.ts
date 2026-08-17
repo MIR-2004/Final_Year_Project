@@ -17,7 +17,7 @@ export const auth = betterAuth({
                 }),
                 portal(),
                 webhooks({
-                    secret: process.env.POLAR_WEBHOOK_SECRET as string,
+                    secret: process.env.POLAR_WEBHOOK_SECRET || "",
                 })
             ],
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
