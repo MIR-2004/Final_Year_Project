@@ -4,7 +4,7 @@ import { SYSTEM_AGENT_INSTRUCTIONS } from "@/constants";
 export const aiService = {
   async generateSummary(transcriptWithSpeakers: unknown[]): Promise<string> {
     const response = await gemini.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         {
           role: "user",
@@ -47,7 +47,7 @@ Be concise, helpful, and focus on providing accurate information from the meetin
 `.trim();
 
     const response = await gemini.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         ...previousMessages.map((msg) => ({
           role: msg.role === "assistant" ? "model" : "user",

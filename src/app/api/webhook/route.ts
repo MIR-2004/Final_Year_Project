@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
                 }));
 
             const geminiResponse = await gemini.models.generateContent({
-                model: "gemini-2.5-flash",
+                model: "gemini-3.6-flash",
                 contents: [
                     ...previousMessages.map((msg) => ({
                         role: msg.role === "assistant" ? "model" : "user",
