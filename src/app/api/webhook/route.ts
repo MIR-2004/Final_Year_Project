@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { CallEndedEvent, CallTranscriptionReadyEvent, CallSessionParticipantLeftEvent, CallRecordingReadyEvent, CallSessionStartedEvent } from "@stream-io/node-sdk";
 import { db } from "@/db";
@@ -109,15 +109,21 @@ export async function POST(req: NextRequest) {
         } catch (error) {
             console.error("Error handling participant left:", error);
         }
-    } else if (eventType === "call.session_ended") {
+    } else if (eventType === "call.session_ended" || eventType === "call.ended") {
         const event = payload as CallEndedEvent;
-        const meetingId = event.call.custom?.meetingId;
+        const meetingId = event.call?.custom?.meetingId || event.call_cid?.split(":")[1] || (event as { call?: { id?: string } })?.call?.id;
 
         if (!meetingId) {
-            return NextResponse.json({ error: "Missing meetingId" }, { status: 400 })
+            return NextResponse.json({ error: "Missing meetingId" }, { status: 400 });
         }
 
-        await db.update(meetings).set({ status: "processing", endedAt: new Date() }).where(and(eq(meetings.id, meetingId), eq(meetings.status, "active")))
+        await db.update(meetings).set({ status: "processing", endedAt: new Date() }).where(
+            and(
+                eq(meetings.id, meetingId),
+                ne(meetings.status, "completed"),
+                ne(meetings.status, "cancelled")
+            )
+        );
     } else if (eventType === "call.transcription_ready") {
         const event = payload as CallTranscriptionReadyEvent;
         const meetingId = event.call_cid.split(":")[1];

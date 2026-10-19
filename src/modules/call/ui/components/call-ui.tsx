@@ -29,8 +29,8 @@ export const CallUI = ({ meetingId, meetingName, chatClient }: Props) => {
                 event.reason === "PolicyViolationModeration"
             ) {
                 setKickedReason(event.reason);
-                setShow("ended");
             }
+            setShow("ended");
         });
 
         return () => unsubscribe();
@@ -92,7 +92,7 @@ export const CallUI = ({ meetingId, meetingName, chatClient }: Props) => {
                     chatClient={chatClient}
                 />
             )}
-            {show === "ended" && <CallEnded kickedReason={kickedReason} />}
+            {show === "ended" && <CallEnded kickedReason={kickedReason} meetingId={meetingId} />}
         </StreamTheme>
     );
 };
